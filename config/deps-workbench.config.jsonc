@@ -1,0 +1,24 @@
+{
+  // Checked-in policy defaults. Local operator overrides belong under .local/.
+  "modes": {
+    "default": "implementation",
+    "allowed": ["triage", "research", "implementation"]
+  },
+  "modelRouting": {
+    "tiers": {
+      "nano": "gpt-5.4-nano",
+      "mini": "gpt-5.4-mini",
+      "full": "gpt-5.4"
+    }
+  },
+  "recovery": {
+    "maxAutomaticHops": 1,
+    "allowedActions": [
+      "refresh_docs",
+      "refresh_releases",
+      "retry_one_failed_artifact_family",
+      "re_run_with_escalation"
+    ]
+  },
+  "frameworkEnrichments": ["react", "next", "expo", "convex"]
+}
