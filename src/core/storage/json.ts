@@ -1,5 +1,3 @@
-import { readFile, writeFile } from 'node:fs/promises';
-
 import { parse as parseJsonc } from 'jsonc-parser';
 import type { ZodType } from 'zod';
 
@@ -7,7 +5,7 @@ export async function readJsonFile<T>(
   filePath: string,
   schema: ZodType<T>,
 ): Promise<T> {
-  const contents = await readFile(filePath, 'utf8');
+  const contents = await Bun.file(filePath).text();
   const parsed = JSON.parse(contents) as unknown;
 
   return schema.parse(parsed);
@@ -17,7 +15,7 @@ export async function readJsoncFile<T>(
   filePath: string,
   schema: ZodType<T>,
 ): Promise<T> {
-  const contents = await readFile(filePath, 'utf8');
+  const contents = await Bun.file(filePath).text();
   const parseErrors: Array<{
     error: number;
     offset: number;
@@ -51,5 +49,5 @@ export async function writeJsonFile(
     throw new TypeError(`Value is not JSON-serializable for ${filePath}`);
   }
 
-  await writeFile(filePath, `${serialized}\n`, 'utf8');
+  await Bun.write(filePath, `${serialized}\n`);
 }
