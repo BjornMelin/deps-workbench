@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1",
+  "runId": "run_123",
+  "mode": "implementation",
+  "resultRoot": "/repo/.local/runs/run_123/result",
+  "createdAt": "2026-04-10T12:05:00.000Z",
+  "outcomeClass": "review_required",
+  "primaryAction": "review_key_claims",
+  "modelUsed": "gpt-5.4-mini",
+  "topRiskSignals": ["major_version_change"],
+  "topUnverifiedItems": ["migration_docs_gap"],
+  "recommendedNextMode": "implementation",
+  "resultFiles": {
+    "executiveBrief": "/repo/.local/runs/run_123/result/executive_brief.md",
+    "decisionReport": "/repo/.local/runs/run_123/result/decision_report.json",
+    "evidenceMap": "/repo/.local/runs/run_123/result/evidence_map.json",
+    "implementationChecklist": "/repo/.local/runs/run_123/result/implementation_checklist.json",
+    "validationChecklist": "/repo/.local/runs/run_123/result/validation_checklist.json"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1",
+  "runId": "run_123",
+  "mode": "implementation",
+  "repoRoot": "/repo",
+  "artifactRoot": "/repo/.local/runs/run_123/prep",
+  "createdAt": "2026-04-10T12:00:00.000Z",
+  "artifactFamilies": ["meta", "docs", "usage"],
+  "degradedArtifactFamilies": [],
+  "sourceFamilies": ["bun", "ctx7", "github"],
+  "cacheKeys": [
+    {
+      "family": "docs",
+      "key": "docs_abc123"
+    }
+  ]
+}
