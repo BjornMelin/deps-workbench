@@ -12,6 +12,10 @@
 5. `run` must provide the normal end-to-end workflow.
 6. `resume` must inspect prior run state and continue only when explicitly
    requested.
+7. The repo must own the source of truth for package-coupled skills under
+   `skills/`.
+8. The repo must provide a documented install/sync path for bundled skills using
+   the standard `skills` CLI through repo-level wrappers.
 
 ## Quality requirements
 
@@ -19,8 +23,9 @@
 2. The repo must remain Bun-native and single-package in v1.
 3. The primary analysis lane must remain OpenAI-first and OpenAI-only in v1.
 4. Token-saving behavior must come from compact rendering and selective loading,
-   not by throwing away raw JSON evidence.
+   not by discarding raw JSON evidence.
 5. The system must keep per-claim confidence and explicit `UNVERIFIED` buckets.
+6. Phase plans must be near-standalone execution packets, not lightweight notes.
 
 ## Operational requirements
 
@@ -28,12 +33,16 @@
 2. Checked-in policy must live under `config/`.
 3. Prep and analysis must support resumable run IDs plus reusable cache keys.
 4. Recovery must stay bounded to one automatic hop with an allowlist.
-5. Future phases must preserve explicit verification commands and stop rules.
+5. Bundled skills must install outward as disposable mirrors.
+6. Runtime package releases and bundled-skill releases must not require manual
+   version bumping or manual GitHub release creation.
 
 ## Documentation requirements
 
 1. `docs/plan/README.md` is the planning and routing authority.
-2. Each numbered phase plan must define goal, locked decisions, scope, steps,
-   verification, and stop/resume rules.
+2. Each numbered phase plan must define mission, context, persona, scope,
+   explicit task ledger, verification, and stop/resume rules.
 3. Prompt templates must support future `gpt-5.4-high` implementation sessions.
-4. README and AGENTS must stay aligned with the plan index.
+4. README, AGENTS, authority docs, and phase plans must remain aligned.
+5. Bundled skills ownership, install flow, and release automation must be
+   documented before the repo claims release readiness.
