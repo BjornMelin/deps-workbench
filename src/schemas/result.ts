@@ -38,6 +38,18 @@ export const resultManifestSchema = z
     recommendedNextMode: modeSchema.optional(),
     resultFiles: resultFilesSchema,
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    if (
+      value.outcomeClass === 'blocked' &&
+      value.primaryAction !== 'stop_blocked'
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['primaryAction'],
+        message: 'primaryAction must be stop_blocked when outcomeClass is blocked',
+      });
+    }
+  });
 
 export type ResultManifest = z.infer<typeof resultManifestSchema>;

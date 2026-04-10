@@ -28,13 +28,13 @@ export function resolveLocalStatePaths(
   };
 }
 
-export function assertPathWithinRepoRoot(
-  repoRoot: string,
+export function assertPathWithinBase(
+  baseDir: string,
   candidatePath: string,
 ): string {
-  const resolvedRepoRoot = resolveRepoRoot(repoRoot);
-  const resolvedCandidatePath = path.resolve(candidatePath);
-  const relativePath = path.relative(resolvedRepoRoot, resolvedCandidatePath);
+  const resolvedBaseDir = resolveRepoRoot(baseDir);
+  const resolvedCandidatePath = path.resolve(resolvedBaseDir, candidatePath);
+  const relativePath = path.relative(resolvedBaseDir, resolvedCandidatePath);
 
   if (
     relativePath === '..' ||
@@ -42,17 +42,24 @@ export function assertPathWithinRepoRoot(
     path.isAbsolute(relativePath)
   ) {
     throw new Error(
-      `Path escapes repo root: ${resolvedCandidatePath} is outside ${resolvedRepoRoot}`,
+      `Path escapes base directory: ${resolvedCandidatePath} is outside ${resolvedBaseDir}`,
     );
   }
 
   return resolvedCandidatePath;
 }
 
+export function assertPathWithinRepoRoot(
+  repoRoot: string,
+  candidatePath: string,
+): string {
+  return assertPathWithinBase(repoRoot, candidatePath);
+}
+
 export function resolveRunDirectory(repoRoot: string, runId: string): string {
   const { runsRoot } = resolveLocalStatePaths(repoRoot);
 
-  return assertPathWithinRepoRoot(repoRoot, path.join(runsRoot, runId));
+  return assertPathWithinBase(runsRoot, path.join(runsRoot, runId));
 }
 
 export function resolveCacheDirectory(
@@ -62,8 +69,8 @@ export function resolveCacheDirectory(
 ): string {
   const { cacheRoot } = resolveLocalStatePaths(repoRoot);
 
-  return assertPathWithinRepoRoot(
-    repoRoot,
+  return assertPathWithinBase(
+    cacheRoot,
     path.join(cacheRoot, family, cacheKey),
   );
 }

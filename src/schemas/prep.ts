@@ -31,6 +31,21 @@ export const prepManifestSchema = z
     sourceFamilies: stringListSchema.min(1),
     cacheKeys: z.array(cacheKeySchema).default([]),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    const artifactFamilies = new Set(value.artifactFamilies);
+    const missingDegradedFamilies = value.degradedArtifactFamilies.filter(
+      (family) => !artifactFamilies.has(family),
+    );
+
+    if (missingDegradedFamilies.length > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['degradedArtifactFamilies'],
+        message:
+          'degradedArtifactFamilies must be a subset of artifactFamilies',
+      });
+    }
+  });
 
 export type PrepManifest = z.infer<typeof prepManifestSchema>;

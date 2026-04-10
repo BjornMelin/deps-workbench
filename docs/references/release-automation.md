@@ -51,7 +51,7 @@ Plan 06 should implement a release flow that can:
   commit conventions and CI-driven publishing.
 - The current `skills` CLI ecosystem expects skills to be installable from a
   repo/package source, which reinforces keeping the bundled-skills lane GitHub
-  oriented rather than npm coupled.
+  oriented rather than npm-coupled.
 
 ## Constraints
 

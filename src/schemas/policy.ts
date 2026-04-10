@@ -24,13 +24,7 @@ export const policySchema = z
       ),
     modelRouting: z
       .object({
-        tiers: z
-          .object({
-            nano: z.string().trim().min(1),
-            mini: z.string().trim().min(1),
-            full: z.string().trim().min(1),
-          })
-          .strict(),
+        tiers: z.record(modelTierSchema, z.string().trim().min(1)),
       })
       .strict(),
     recovery: z

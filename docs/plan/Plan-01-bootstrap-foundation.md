@@ -152,7 +152,7 @@ This phase is complete only if:
 ## Stop rules
 
 - Stop if the repo can no longer be bootstrapped with Bun-only commands.
-- Stop if README, AGENTS, and the planning index diverge on core architecture.
+- If README, AGENTS, and the planning index diverge on core architecture, stop.
 
 ## Resume rules
 

@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'bun:test';
 
@@ -8,7 +9,7 @@ import {
   resultManifestSchema,
 } from '../src/schemas';
 
-const repoRoot = process.cwd();
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 async function readFixture(relativePath: string): Promise<unknown> {
   const fixturePath = path.join(repoRoot, 'fixtures', relativePath);

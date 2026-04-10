@@ -51,7 +51,7 @@ the same reasoning tax later.
 
 ## Locked decisions for this phase
 
-- analysis runtime is OpenAI Agents JS SDK based
+- analysis runtime is OpenAI Agents JS SDK-based
 - provider strategy is OpenAI-first and OpenAI-only in v1
 - escalation is conservative: nano -> mini -> full
 - one bounded automatic recovery hop with a strict allowlist

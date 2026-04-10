@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -21,19 +21,28 @@ describe('checked-in policy loading', () => {
 
   test('raises a policy load error for invalid policy config', async () => {
     const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'deps-workbench-'));
-    const configDirectory = path.join(tempRoot, 'config');
-    const fixturePath = path.join(repoRoot, 'fixtures', 'policy', 'invalid-config.jsonc');
-    const invalidConfig = await readFile(fixturePath, 'utf8');
+    try {
+      const configDirectory = path.join(tempRoot, 'config');
+      const fixturePath = path.join(
+        repoRoot,
+        'fixtures',
+        'policy',
+        'invalid-config.jsonc',
+      );
+      const invalidConfig = await readFile(fixturePath, 'utf8');
 
-    await mkdir(configDirectory, { recursive: true });
-    await writeFile(
-      path.join(configDirectory, 'deps-workbench.config.jsonc'),
-      invalidConfig,
-      'utf8',
-    );
+      await mkdir(configDirectory, { recursive: true });
+      await writeFile(
+        path.join(configDirectory, 'deps-workbench.config.jsonc'),
+        invalidConfig,
+        'utf8',
+      );
 
-    await expect(loadCheckedInPolicy(tempRoot)).rejects.toBeInstanceOf(
-      PolicyLoadError,
-    );
+      await expect(loadCheckedInPolicy(tempRoot)).rejects.toBeInstanceOf(
+        PolicyLoadError,
+      );
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
   });
 });

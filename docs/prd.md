@@ -58,7 +58,7 @@ Collect evidence once, with typed outputs, before model reasoning begins.
 
 ### JSON-first contracts
 
-Keep machine contracts authoritative and use markdown only as a compact operator
+Keep machine contracts authoritative and use Markdown only as a compact operator
 view.
 
 ### Implementation-driving outputs

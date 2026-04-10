@@ -1,4 +1,4 @@
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -13,22 +13,35 @@ import {
 } from '../src/core/storage/paths';
 
 describe('local state paths', () => {
-  test('resolves the canonical .local structure under the repo root', () => {
-    const paths = resolveLocalStatePaths('/repo');
+  test('resolves the canonical .local structure under the repo root', async () => {
+    const repoRoot = await mkdtemp(path.join(os.tmpdir(), 'deps-workbench-'));
 
-    expect(paths.localRoot).toBe(path.join('/repo', '.local'));
-    expect(paths.runsRoot).toBe(path.join('/repo', '.local', 'runs'));
-    expect(paths.cacheRoot).toBe(path.join('/repo', '.local', 'cache'));
-    expect(paths.configRoot).toBe(path.join('/repo', '.local', 'config'));
+    try {
+      const paths = resolveLocalStatePaths(repoRoot);
+
+      expect(paths.repoRoot).toBe(path.resolve(repoRoot));
+      expect(paths.localRoot).toBe(path.join(repoRoot, '.local'));
+      expect(paths.runsRoot).toBe(path.join(repoRoot, '.local', 'runs'));
+      expect(paths.cacheRoot).toBe(path.join(repoRoot, '.local', 'cache'));
+      expect(paths.configRoot).toBe(path.join(repoRoot, '.local', 'config'));
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
   });
 
   test('creates local state directories under the repo root', async () => {
     const repoRoot = await mkdtemp(path.join(os.tmpdir(), 'deps-workbench-'));
-    const paths = await ensureLocalStateDirectories(repoRoot);
+    try {
+      const paths = await ensureLocalStateDirectories(repoRoot);
 
-    expect(paths.runsRoot.endsWith(path.join('.local', 'runs'))).toBe(true);
-    expect(paths.cacheRoot.endsWith(path.join('.local', 'cache'))).toBe(true);
-    expect(paths.configRoot.endsWith(path.join('.local', 'config'))).toBe(true);
+      await Promise.all([
+        stat(paths.runsRoot),
+        stat(paths.cacheRoot),
+        stat(paths.configRoot),
+      ]);
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
   });
 
   test('rejects paths that escape the repo root', () => {
@@ -44,5 +57,7 @@ describe('local state paths', () => {
     expect(resolveCacheDirectory('/repo', 'docs', 'abc123')).toBe(
       path.join('/repo', '.local', 'cache', 'docs', 'abc123'),
     );
+    expect(() => resolveRunDirectory('/repo', '../escape')).toThrow();
+    expect(() => resolveCacheDirectory('/repo', 'docs', '../../escape')).toThrow();
   });
 });
