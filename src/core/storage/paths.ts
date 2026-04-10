@@ -1,5 +1,5 @@
-import path from 'node:path';
 import { mkdir } from 'node:fs/promises';
+import path from 'node:path';
 
 export type LocalStatePaths = {
   repoRoot: string;

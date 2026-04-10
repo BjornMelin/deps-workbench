@@ -1,16 +1,11 @@
 import { z } from 'zod';
-
-import {
-  modeSchema,
-  outcomeClassSchema,
-  primaryActionSchema,
-} from './enums';
 import {
   isoTimestampSchema,
   nonEmptyStringSchema,
   pathSchema,
   stringListSchema,
 } from './common';
+import { modeSchema, outcomeClassSchema, primaryActionSchema } from './enums';
 
 export const resultFilesSchema = z
   .object({
@@ -47,7 +42,8 @@ export const resultManifestSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['primaryAction'],
-        message: 'primaryAction must be stop_blocked when outcomeClass is blocked',
+        message:
+          'primaryAction must be stop_blocked when outcomeClass is blocked',
       });
     }
   });

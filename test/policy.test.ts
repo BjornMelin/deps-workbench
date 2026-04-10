@@ -1,12 +1,11 @@
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { describe, expect, test } from 'bun:test';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { describe, expect, test } from 'bun:test';
-
 import {
-  PolicyLoadError,
   loadCheckedInPolicy,
+  PolicyLoadError,
 } from '../src/core/policy/load-policy';
 
 const repoRoot = process.cwd();

@@ -37,6 +37,9 @@
 ## Current developer commands
 
 ```bash
+bun run biome:check
+bun run biome:write
+bun run biome:ci
 bun run dev
 bun run test
 bun run typecheck

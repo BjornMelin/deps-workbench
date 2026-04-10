@@ -2,14 +2,18 @@ import path from 'node:path';
 
 import { ZodError } from 'zod';
 
-import { policySchema, type Policy } from '../../schemas';
+import { type Policy, policySchema } from '../../schemas';
 import { readJsoncFile } from '../storage/json';
 import { resolveRepoRoot } from '../storage/paths';
 
 export class PolicyLoadError extends Error {
   readonly filePath: string;
 
-  constructor(message: string, filePath: string, options?: { cause?: unknown }) {
+  constructor(
+    message: string,
+    filePath: string,
+    options?: { cause?: unknown },
+  ) {
     super(message, options);
     this.filePath = filePath;
     this.name = 'PolicyLoadError';
@@ -17,7 +21,11 @@ export class PolicyLoadError extends Error {
 }
 
 export function resolveCheckedInPolicyPath(repoRoot = process.cwd()): string {
-  return path.join(resolveRepoRoot(repoRoot), 'config', 'deps-workbench.config.jsonc');
+  return path.join(
+    resolveRepoRoot(repoRoot),
+    'config',
+    'deps-workbench.config.jsonc',
+  );
 }
 
 export async function loadCheckedInPolicy(
@@ -32,7 +40,8 @@ export async function loadCheckedInPolicy(
       throw new PolicyLoadError(
         `Invalid checked-in policy at ${filePath}: ${error.issues
           .map(({ path: issuePath, message }) => {
-            const renderedPath = issuePath.length > 0 ? issuePath.join('.') : 'root';
+            const renderedPath =
+              issuePath.length > 0 ? issuePath.join('.') : 'root';
             return `${renderedPath} ${message}`;
           })
           .join('; ')}`,

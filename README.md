@@ -71,9 +71,12 @@ repo-documented wrappers around the standard `skills` CLI.
 
 ```bash
 bun install
+bun run biome:write
+bun run biome:ci
 bun run dev
 bun run test
 bun run typecheck
+bun run check
 ```
 
 The CLI is still a placeholder until the implementation phases land. The

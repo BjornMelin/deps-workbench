@@ -1,15 +1,11 @@
 import { z } from 'zod';
-
-import {
-  artifactFamilySchema,
-  modeSchema,
-} from './enums';
 import {
   isoTimestampSchema,
   nonEmptyStringSchema,
   pathSchema,
   stringListSchema,
 } from './common';
+import { artifactFamilySchema, modeSchema } from './enums';
 
 export const cacheKeySchema = z
   .object({

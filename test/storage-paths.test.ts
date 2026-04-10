@@ -1,8 +1,7 @@
+import { describe, expect, test } from 'bun:test';
 import { mkdtemp, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-
-import { describe, expect, test } from 'bun:test';
 
 import {
   assertPathWithinRepoRoot,
@@ -58,6 +57,8 @@ describe('local state paths', () => {
       path.join('/repo', '.local', 'cache', 'docs', 'abc123'),
     );
     expect(() => resolveRunDirectory('/repo', '../escape')).toThrow();
-    expect(() => resolveCacheDirectory('/repo', 'docs', '../../escape')).toThrow();
+    expect(() =>
+      resolveCacheDirectory('/repo', 'docs', '../../escape'),
+    ).toThrow();
   });
 });

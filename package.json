@@ -5,14 +5,19 @@
   "module": "src/cli.ts",
   "type": "module",
   "private": true,
+  "packageManager": "bun@1.3.11",
   "scripts": {
     "dev": "bun run src/cli.ts",
     "start": "bun run src/cli.ts",
+    "biome:check": "bunx --bun @biomejs/biome check .",
+    "biome:write": "bunx --bun @biomejs/biome check --write .",
+    "biome:ci": "bunx --bun @biomejs/biome ci .",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "check": "bun run typecheck && bun run test"
+    "check": "bun run biome:ci && bun run typecheck && bun run test"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.4.11",
     "@types/bun": "latest"
   },
   "peerDependencies": {

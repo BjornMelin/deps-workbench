@@ -1,15 +1,14 @@
+import { describe, expect, test } from 'bun:test';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describe, expect, test } from 'bun:test';
+import { prepManifestSchema, resultManifestSchema } from '../src/schemas';
 
-import {
-  prepManifestSchema,
-  resultManifestSchema,
-} from '../src/schemas';
-
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+);
 
 async function readFixture(relativePath: string): Promise<unknown> {
   const fixturePath = path.join(repoRoot, 'fixtures', relativePath);
