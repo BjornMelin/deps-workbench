@@ -17,8 +17,10 @@ type ParsedCliCommand =
   | { kind: 'placeholder'; commandName: string }
   | { kind: 'error'; message: string; exitCode: number };
 
-const VERSION = '0.1.0';
 const PLACEHOLDER_COMMANDS = new Set(['analyze', 'report', 'run', 'resume']);
+const packageVersionPromise = Bun.file(
+  new URL('../package.json', import.meta.url),
+).json() as Promise<{ version?: string }>;
 
 /**
  * Single-line summary of supported commands and where execution policy is defined.
@@ -36,6 +38,8 @@ export function describeRepoIntent(): string {
 
 /**
  * Global CLI usage and command list (excludes per-command help such as `prepare`).
+ *
+ * @returns Newline-separated help text for the top-level CLI command surface.
  */
 export function getCliHelp(): string {
   return [
@@ -175,6 +179,7 @@ function parsePrepareArgs(args: string[]): ParsedCliCommand {
  * Parses argv-style tokens into a command, options, or a structured error.
  *
  * @param args - Typically `process.argv.slice(2)`; first token is the subcommand when present.
+ * @returns Parsed CLI command describing help, version, prepare execution, placeholder commands, or a usage error.
  */
 export function parseCliArgs(args: string[]): ParsedCliCommand {
   if (args.length === 0 || args[0] === '--help') {
@@ -226,9 +231,11 @@ export async function runCli(
   }
 
   if (parsed.kind === 'version') {
+    const version = (await packageVersionPromise).version ?? '0.0.0';
+
     return {
       exitCode: 0,
-      stdout: `${VERSION}\n`,
+      stdout: `${version}\n`,
       stderr: '',
     };
   }
