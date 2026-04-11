@@ -7,7 +7,6 @@ contract for implementation sessions.
 
 - Prefer Bun-native TypeScript and Bun Shell utilities.
 - Keep one canonical implementation path; do not add compatibility layers.
-- Use `AGENTS.md`, not `CLAUDE.md`, as the repo-local contract.
 - Keep runtime state under `.local/`; do not commit runs, cache, or operator
   local overrides.
 - Keep checked-in policy in `config/deps-workbench.config.jsonc`.
@@ -80,3 +79,23 @@ Do not blur these command boundaries during implementation.
   a way that breaks the locked release split.
 - Before marking a phase done, run the declared verification commands and record
   the real result in the plan docs.
+- Default gate before finishing work: `bun run prepare` (see **Commands**).
+
+## Commands
+
+From repo root: `bun run <script>`; `biome` and `tsc` come from `node_modules`.
+
+```sh
+bun run check # biome:ci + typecheck + test; default verification
+bun run biome:ci # Biome CI check, no writes (CI biome job)
+bun run biome:write # format + safe lint fixes; biome.json file scope
+bun run biome:write:staged # staged files only; used by .husky/pre-commit
+bun run typecheck # tsc --noEmit
+bun run test # bun test
+bun run dev # CLI: src/cli.ts
+bun run start # same as dev
+bun run prepare # Husky hooks; also runs on bun install
+# .husky/pre-commit: biome:write:staged, re-stage, typecheck, test
+HUSKY=0 git commit # commit once with hooks off
+git commit --no-verify # skip hooks for this commit
+```
