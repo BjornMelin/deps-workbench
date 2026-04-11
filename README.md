@@ -28,7 +28,7 @@ that yields typed artifacts, typed results, and action-oriented manifests.
 - [done] Repo scaffold and authority docs are in place
 - [done] Phase 01 bootstrap foundation is verified complete
 - [done] Phase 02 typed contracts, storage, and policy loading
-- [todo] Phase 03 deterministic prep collectors and prep bundles
+- [done] Phase 03 deterministic prep collectors and prep bundles
 - [todo] Phase 04 analysis runtime and model routing
 - [todo] Phase 05 reporting, run, and resume operator flows
 - [todo] Phase 06 bundled-skills ownership, release automation, migration, and
@@ -79,7 +79,7 @@ bun run typecheck
 bun run check
 ```
 
-The CLI is still a placeholder until the implementation phases land. The
+The CLI now has a real `prepare` command; `analyze`, `report`, `run`, and `resume` remain phased placeholders. The
 execution authority for all real work is the planning index:
 [docs/plan/README.md](docs/plan/README.md).
 

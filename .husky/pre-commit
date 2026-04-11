@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+set -eu
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT" || exit 1
+
+bun run hook:pre-commit-format
+
+bun run typecheck
+bun run test

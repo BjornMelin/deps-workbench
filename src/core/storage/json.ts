@@ -1,6 +1,18 @@
+import { randomUUID } from 'node:crypto';
+import { mkdir, rename, rm } from 'node:fs/promises';
+import path from 'node:path';
+
 import { parse as parseJsonc } from 'jsonc-parser';
 import type { ZodType } from 'zod';
 
+/**
+ * Reads a UTF-8 JSON file and validates with the given Zod schema.
+ *
+ * @param filePath - Absolute or repo-relative path to the JSON file.
+ * @param schema - Zod schema used to validate the parsed value.
+ * @returns Parsed JSON value after schema validation.
+ * @throws If the file is not valid JSON or validation fails.
+ */
 export async function readJsonFile<T>(
   filePath: string,
   schema: ZodType<T>,
@@ -11,6 +23,14 @@ export async function readJsonFile<T>(
   return schema.parse(parsed);
 }
 
+/**
+ * Reads JSON with comments (JSONC), rejects on parse diagnostics, then validates with Zod.
+ *
+ * @param filePath - Absolute or repo-relative path to the JSONC file.
+ * @param schema - Zod schema used to validate the parsed value.
+ * @returns Parsed JSONC value after syntax and schema validation.
+ * @throws `SyntaxError` when JSONC parsing fails; Zod errors when validation fails.
+ */
 export async function readJsoncFile<T>(
   filePath: string,
   schema: ZodType<T>,
@@ -39,6 +59,14 @@ export async function readJsoncFile<T>(
   return schema.parse(parsed);
 }
 
+/**
+ * Writes pretty-printed JSON (two-space indent, trailing newline). Creates parent directories.
+ *
+ * @param filePath - Output path for the JSON file.
+ * @param value - Serializable value to persist.
+ * @returns Resolves when the file and parent directories have been written.
+ * @throws `TypeError` when `value` is not JSON-serializable.
+ */
 export async function writeJsonFile(
   filePath: string,
   value: unknown,
@@ -49,5 +77,31 @@ export async function writeJsonFile(
     throw new TypeError(`Value is not JSON-serializable for ${filePath}`);
   }
 
+  await mkdir(path.dirname(filePath), { recursive: true });
   await Bun.write(filePath, `${serialized}\n`);
+}
+
+/**
+ * Writes JSON through a temporary sibling file, then renames it into place.
+ *
+ * @param filePath - Output path for the JSON file.
+ * @param value - Serializable value to persist.
+ * @returns Resolves when the final file contents are atomically visible at `filePath`.
+ * @throws `TypeError` when `value` is not JSON-serializable.
+ */
+export async function writeJsonFileAtomic(
+  filePath: string,
+  value: unknown,
+): Promise<void> {
+  const tempFilePath = path.join(
+    path.dirname(filePath),
+    `${path.basename(filePath)}.${process.pid}.${randomUUID()}.tmp`,
+  );
+
+  try {
+    await writeJsonFile(tempFilePath, value);
+    await rename(tempFilePath, filePath);
+  } finally {
+    await rm(tempFilePath, { force: true }).catch(() => {});
+  }
 }

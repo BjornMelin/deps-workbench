@@ -5,13 +5,48 @@
   "repoRoot": "/repo",
   "artifactRoot": "/repo/.local/runs/run_123/prep",
   "createdAt": "2026-04-10T12:00:00.000Z",
-  "artifactFamilies": ["meta", "docs", "usage"],
+  "request": {
+    "packages": ["zod"],
+    "targetVersion": "4.4.0"
+  },
+  "artifactFamilies": [
+    "meta",
+    "docs",
+    "releases",
+    "source_paths",
+    "diff",
+    "usage",
+    "signals"
+  ],
   "degradedArtifactFamilies": [],
-  "sourceFamilies": ["bun", "ctx7", "github"],
+  "sourceFamilies": ["bun", "ctx7", "gh"],
   "cacheKeys": [
     {
       "family": "docs",
       "key": "docs_abc123"
     }
-  ]
+  ],
+  "artifactFiles": {
+    "manifest": "/repo/.local/runs/run_123/prep/manifest.json",
+    "meta": "/repo/.local/runs/run_123/prep/meta.json",
+    "docs": "/repo/.local/runs/run_123/prep/docs.json",
+    "releases": "/repo/.local/runs/run_123/prep/releases.json",
+    "sourcePaths": "/repo/.local/runs/run_123/prep/source_paths.json",
+    "diff": "/repo/.local/runs/run_123/prep/diff.json",
+    "usage": "/repo/.local/runs/run_123/prep/usage.json",
+    "signals": "/repo/.local/runs/run_123/prep/signals.json"
+  },
+  "preflight": {
+    "tools": [
+      {
+        "toolName": "bun",
+        "requirement": "required",
+        "available": true,
+        "version": "1.3.12",
+        "notes": []
+      }
+    ],
+    "missingRequiredTools": [],
+    "missingOptionalTools": []
+  }
 }
