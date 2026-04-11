@@ -76,7 +76,6 @@ export async function loadPrepBundleFromManifest(
   manifestPath: string,
   runDirectory: string,
 ): Promise<LoadedPrepBundle> {
-  const manifest = await readJsonFile(manifestPath, prepManifestSchema);
   const resolvedManifestPath = path.resolve(manifestPath);
   const expectedManifestPath = path.join(runDirectory, 'prep', 'manifest.json');
 
@@ -86,10 +85,9 @@ export async function loadPrepBundleFromManifest(
     );
   }
 
-  const artifactRoot = assertPathWithinBase(
-    runDirectory,
-    manifest.artifactRoot,
-  );
+  const manifest = await readJsonFile(manifestPath, prepManifestSchema);
+  const prepRoot = path.join(runDirectory, 'prep');
+  const artifactRoot = assertPathWithinBase(prepRoot, manifest.artifactRoot);
   const [meta, docs, releases, sourcePaths, diff, usage, signals] =
     await Promise.all([
       readPrepArtifact(

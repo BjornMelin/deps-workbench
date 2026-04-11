@@ -126,12 +126,10 @@ export async function analyzePreparedRun(
   dependencies: AnalyzeRunDependencies = {},
 ): Promise<AnalyzeRunResult> {
   const now = dependencies.now ?? (() => new Date());
-  const prepBundle = await loadPrepBundleFromRunId(
-    options.repoRoot ?? process.cwd(),
-    options.runId,
-  );
+  const repoRoot = options.repoRoot ?? process.cwd();
+  const prepBundle = await loadPrepBundleFromRunId(repoRoot, options.runId);
   const policy = await (dependencies.loadPolicy ?? loadCheckedInPolicy)(
-    prepBundle.manifest.repoRoot,
+    repoRoot,
   );
   const structuralAssessment = evaluateStructuralEligibility(
     prepBundle,

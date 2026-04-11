@@ -5,10 +5,16 @@ import path from 'node:path';
 import { analysisPromptExample } from '../src/core/models/openai-analysis';
 import { loadCheckedInPolicy } from '../src/core/policy/load-policy';
 import { analyzePreparedRun } from '../src/core/runtime/analyze-run';
-import { loadPrepBundleFromRunId } from '../src/core/runtime/intake';
+import {
+  loadPrepBundleFromManifest,
+  loadPrepBundleFromRunId,
+} from '../src/core/runtime/intake';
 import { buildRoutingDecision } from '../src/core/runtime/routing';
 import { writeJsonFileAtomic } from '../src/core/storage/json';
-import { resolvePrepArtifactRoot } from '../src/core/storage/paths';
+import {
+  resolvePrepArtifactRoot,
+  resolveRunDirectory,
+} from '../src/core/storage/paths';
 import {
   analysisSynthesisSchema,
   decisionReportSchema,
@@ -630,6 +636,77 @@ describe('analyzePreparedRun', () => {
       await expect(loadPrepBundleFromRunId(tempRepo, runId)).rejects.toThrow(
         /outside/,
       );
+    } finally {
+      await rm(tempRepo, { recursive: true, force: true });
+    }
+  });
+
+  test('rejects non-canonical manifest paths before opening the file', async () => {
+    const tempRepo = await makeTempRepo();
+    const runId = 'run_manifest_path_guard';
+
+    try {
+      await writePrepFixture(tempRepo, runId, {
+        mode: 'implementation',
+      });
+
+      await expect(
+        loadPrepBundleFromManifest(
+          path.join(
+            tempRepo,
+            '.local',
+            'runs',
+            'other',
+            'prep',
+            'manifest.json',
+          ),
+          resolveRunDirectory(tempRepo, runId),
+        ),
+      ).rejects.toThrow('prep manifest path mismatch');
+    } finally {
+      await rm(tempRepo, { recursive: true, force: true });
+    }
+  });
+
+  test('loads policy from the caller repo root instead of the manifest root', async () => {
+    const tempRepo = await makeTempRepo();
+    let capturedRepoRoot: string | undefined;
+
+    try {
+      const runId = 'run_policy_root_guard';
+      await writePrepFixture(tempRepo, runId, {
+        mode: 'implementation',
+      });
+
+      const manifestPath = path.join(
+        resolvePrepArtifactRoot(tempRepo, runId),
+        'manifest.json',
+      );
+      const manifest = prepManifestSchema.parse(
+        JSON.parse(await Bun.file(manifestPath).text()) as unknown,
+      );
+
+      await writeJsonFileAtomic(manifestPath, {
+        ...manifest,
+        repoRoot: path.join(tempRepo, '..', 'tampered-root'),
+      });
+
+      await analyzePreparedRun(
+        { repoRoot: tempRepo, runId },
+        {
+          loadPolicy: async (repoRoot) => {
+            capturedRepoRoot = repoRoot;
+            return loadCheckedInPolicy(repoRoot);
+          },
+          modelExecutor: async () => ({
+            synthesis: synthesisFixture(),
+            modelUsed: 'gpt-5.4-mini',
+          }),
+          now: () => new Date('2026-04-11T08:16:00.000Z'),
+        },
+      );
+
+      expect(capturedRepoRoot).toBe(tempRepo);
     } finally {
       await rm(tempRepo, { recursive: true, force: true });
     }
