@@ -1,5 +1,3 @@
-import { spawnSync } from 'node:child_process';
-
 type CommandResult = {
   exitCode: number;
   stderr: string;
@@ -29,38 +27,37 @@ function runCommand(
     throw new Error('Expected a command to execute');
   }
 
-  const result = spawnSync(executable, command.slice(1), {
+  const stdin =
+    typeof options.input === 'string'
+      ? Buffer.from(options.input)
+      : options.input;
+  const result = Bun.spawnSync({
+    cmd: [executable, ...command.slice(1)],
     cwd: options.cwd,
-    input: options.input,
+    stdin,
+    stdout: 'pipe',
+    stderr: 'pipe',
   });
 
-  if (result.error) {
-    throw result.error;
-  }
-
-  if (result.status === null) {
+  if (result.exitCode === null) {
     throw new Error(`${command.join(' ')} terminated unexpectedly`);
   }
 
-  const stdout = Buffer.isBuffer(result.stdout)
-    ? result.stdout
-    : Buffer.from(result.stdout);
-  const stderrBuffer = Buffer.isBuffer(result.stderr)
-    ? result.stderr
-    : Buffer.from(result.stderr);
+  const stdout = Buffer.from(result.stdout);
+  const stderrBuffer = Buffer.from(result.stderr);
   const stderr = stderrBuffer.toString('utf8').trimEnd();
   const allowedExitCodes = options.allowedExitCodes ?? [0];
 
-  if (!allowedExitCodes.includes(result.status)) {
+  if (!allowedExitCodes.includes(result.exitCode)) {
     throw new Error(
       stderr.length > 0
         ? stderr
-        : `${command.join(' ')} exited with status ${result.status}`,
+        : `${command.join(' ')} exited with status ${result.exitCode}`,
     );
   }
 
   return {
-    exitCode: result.status,
+    exitCode: result.exitCode,
     stderr,
     stdout,
   };
@@ -223,6 +220,12 @@ function patchWorkingTree(
   }`;
 }
 
+/**
+ * Formats staged file blobs with Biome while preserving unstaged working-tree changes when possible.
+ *
+ * @param repoRoot - Repository root path containing the git index and working tree to update.
+ * @returns Object with `formattedFiles` listing staged paths updated in the index and `warnings` listing non-fatal worktree patch failures.
+ */
 export function formatStagedFilesWithBiome(repoRoot: string): {
   formattedFiles: string[];
   warnings: string[];
