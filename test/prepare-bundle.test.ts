@@ -10,6 +10,7 @@ import { cp, mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import * as diffCollectors from '../src/core/collectors/diff';
 import {
   diffArtifactSchema,
   docsArtifactSchema,
@@ -140,6 +141,7 @@ async function loadCreatePrepBundle(
 
   if (overrides.collectDiffArtifact) {
     mock.module('../src/core/collectors/diff', () => ({
+      ...diffCollectors,
       collectDiffArtifact: overrides.collectDiffArtifact,
     }));
   }

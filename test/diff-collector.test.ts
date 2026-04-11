@@ -2,6 +2,12 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import {
+  buildDiffPackageEntry,
+  collectDiffArtifact,
+  diffResultCollected,
+  diffResultError,
+} from '../src/core/collectors/diff';
 import { sourcePathsArtifactSchema } from '../src/schemas';
 
 const tempRoots: string[] = [];
@@ -45,14 +51,6 @@ function makeSourcePathsArtifact(currentPath: string, targetPath: string) {
   });
 }
 
-async function loadCollectDiffArtifact() {
-  return (
-    await import(
-      `../src/core/collectors/diff?test=${Date.now()}-${Math.random()}`
-    )
-  ).collectDiffArtifact;
-}
-
 afterEach(async () => {
   await Promise.all(
     tempRoots
@@ -62,64 +60,116 @@ afterEach(async () => {
 });
 
 describe('collectDiffArtifact', () => {
+  test('skips identical source paths through the full collector', async () => {
+    const tempRoot = await makeTempRoot();
+    const repoRoot = path.join(tempRoot, 'repo');
+    const sourcePath = path.join(repoRoot, 'shared');
+
+    await mkdir(sourcePath, { recursive: true });
+
+    const artifact = await collectDiffArtifact({
+      repoRoot,
+      generatedAt: '2026-04-10T12:00:00.000Z',
+      sourcePaths: makeSourcePathsArtifact(sourcePath, sourcePath),
+    });
+
+    expect(artifact.family).toBe('diff');
+    expect(artifact.packages).toHaveLength(1);
+    expect(artifact.packages[0]?.package).toBe('zod');
+    expect(artifact.packages[0]?.status).toBe('skipped');
+  });
+
   test('treats exit code 1 with diff output as collected evidence', async () => {
-    const collectDiffArtifact = await loadCollectDiffArtifact();
     const tempRoot = await makeTempRoot();
     const currentPath = path.join(tempRoot, 'current');
     const targetPath = path.join(tempRoot, 'target');
 
     await mkdir(currentPath, { recursive: true });
     await mkdir(targetPath, { recursive: true });
-    await Bun.write(
-      path.join(currentPath, 'package.json'),
-      '{"name":"pkg","version":"1.0.0"}\n',
-    );
-    await Bun.write(
-      path.join(targetPath, 'package.json'),
-      '{"name":"pkg","version":"2.0.0"}\n',
-    );
 
-    const artifact = await collectDiffArtifact({
-      repoRoot: tempRoot,
-      generatedAt: '2026-04-10T12:00:00.000Z',
-      sourcePaths: makeSourcePathsArtifact(currentPath, targetPath),
-    });
+    const entry = makeSourcePathsArtifact(currentPath, targetPath).packages[0];
 
-    expect(artifact.packages).toEqual([
+    if (entry === undefined) {
+      throw new Error('expected a diff entry for the test fixture');
+    }
+    expect(
+      diffResultCollected({
+        command: ['git', 'diff'],
+        cwd: tempRoot,
+        exitCode: 1,
+        stdout: ' package.json | 2 +-\n',
+        stderr: '',
+        timedOut: false,
+      }),
+    ).toBe(true);
+    expect(
+      buildDiffPackageEntry({
+        entry,
+        result: {
+          command: ['git', 'diff'],
+          cwd: tempRoot,
+          exitCode: 1,
+          stdout: ' package.json | 2 +-\n',
+          stderr: '',
+          timedOut: false,
+        },
+      }),
+    ).toEqual(
       expect.objectContaining({
         package: 'zod',
         status: 'collected',
+        summaryText: ' package.json | 2 +-\n',
         error: undefined,
       }),
-    ]);
-    expect(artifact.packages[0]?.summaryText).toContain('package.json');
+    );
   });
 
   test('treats missing source paths as degraded instead of collected', async () => {
-    const collectDiffArtifact = await loadCollectDiffArtifact();
     const tempRoot = await makeTempRoot();
     const currentPath = path.join(tempRoot, 'current');
     const targetPath = path.join(tempRoot, 'missing');
 
     await mkdir(currentPath, { recursive: true });
-    await Bun.write(
-      path.join(currentPath, 'package.json'),
-      '{"name":"pkg","version":"1.0.0"}\n',
-    );
+    const entry = makeSourcePathsArtifact(currentPath, targetPath).packages[0];
 
-    const artifact = await collectDiffArtifact({
-      repoRoot: tempRoot,
-      generatedAt: '2026-04-10T12:00:00.000Z',
-      sourcePaths: makeSourcePathsArtifact(currentPath, targetPath),
-    });
-
-    expect(artifact.packages).toEqual([
+    if (entry === undefined) {
+      throw new Error('expected a diff entry for the test fixture');
+    }
+    expect(
+      buildDiffPackageEntry({
+        entry,
+        result: {
+          command: ['git', 'diff'],
+          cwd: tempRoot,
+          exitCode: 1,
+          stdout: '',
+          stderr: `error: Could not access '${targetPath}'`,
+          timedOut: false,
+        },
+      }),
+    ).toEqual(
       expect.objectContaining({
         package: 'zod',
         status: 'degraded',
         summaryText: undefined,
+        error: `error: Could not access '${targetPath}'`,
       }),
-    ]);
-    expect(artifact.packages[0]?.error).toContain('Could not access');
+    );
+  });
+
+  test('uses a timeout-specific error when git diff times out', () => {
+    expect(
+      diffResultError(
+        {
+          command: ['git', 'diff'],
+          cwd: '/repo',
+          exitCode: null,
+          stdout: '',
+          stderr: '',
+          timedOut: true,
+        },
+        false,
+      ),
+    ).toBe('git diff --no-index timed out');
   });
 });

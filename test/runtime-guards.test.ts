@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
@@ -268,6 +268,132 @@ describe('scanRepoForRequestedPackages', () => {
       expect(result.packages[0]?.declaredVersions).toEqual(['^4.3.6']);
     } finally {
       await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('ignores non-string workspace entries during manifest discovery', async () => {
+    const repoRoot = await mkdtemp(
+      path.join(os.tmpdir(), 'deps-workbench-nonstring-workspace-'),
+    );
+    const includedWorkspaceDir = path.join(repoRoot, 'packages', 'included');
+
+    try {
+      await Bun.write(
+        path.join(repoRoot, 'package.json'),
+        JSON.stringify(
+          {
+            name: 'workspace-root',
+            packageManager: 'bun@1.3.12',
+            workspaces: ['packages/*', 42, null, { nope: true }],
+          },
+          null,
+          2,
+        ),
+      );
+      await Bun.write(
+        path.join(includedWorkspaceDir, 'package.json'),
+        JSON.stringify({
+          name: 'included-workspace',
+          dependencies: {
+            zod: '^4.3.6',
+          },
+        }),
+      );
+
+      const result = await scanRepoForRequestedPackages(repoRoot, ['zod']);
+
+      expect(result.repo.workspaceCount).toBe(1);
+      expect(result.repo.packageJsonCount).toBe(2);
+      expect(result.packages[0]?.declaredVersions).toEqual(['^4.3.6']);
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('does not let negated workspace globs remove the root manifest', async () => {
+    const repoRoot = await mkdtemp(
+      path.join(os.tmpdir(), 'deps-workbench-root-workspace-'),
+    );
+
+    try {
+      await Bun.write(
+        path.join(repoRoot, 'package.json'),
+        JSON.stringify(
+          {
+            name: 'workspace-root',
+            packageManager: 'bun@1.3.12',
+            workspaces: ['package.json', '!package.json'],
+            dependencies: {
+              zod: '^4.3.6',
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const result = await scanRepoForRequestedPackages(repoRoot, ['zod']);
+
+      expect(result.repo.packageJsonCount).toBe(1);
+      expect(result.repo.workspaceCount).toBe(0);
+      expect(result.packages[0]?.declaredVersions).toEqual(['^4.3.6']);
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('normalizes relative repo roots before workspace negation checks', async () => {
+    const tempParent = await mkdtemp(
+      path.join(os.tmpdir(), 'deps-workbench-relative-root-'),
+    );
+    const repoRoot = path.join(tempParent, 'repo');
+    const includedWorkspaceDir = path.join(repoRoot, 'packages', 'included');
+    const previousCwd = process.cwd();
+
+    try {
+      await mkdir(repoRoot, { recursive: true });
+      await mkdir(includedWorkspaceDir, { recursive: true });
+      await Bun.write(
+        path.join(repoRoot, 'package.json'),
+        JSON.stringify(
+          {
+            name: 'relative-root-fixture',
+            private: true,
+            workspaces: ['packages/*', 'package.json', '!package.json'],
+            dependencies: {
+              zod: '^4.3.6',
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      await Bun.write(
+        path.join(includedWorkspaceDir, 'package.json'),
+        JSON.stringify(
+          {
+            name: 'included-workspace',
+            dependencies: {
+              zod: '^5.0.0',
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      await Bun.write(path.join(repoRoot, 'bun.lock'), '');
+
+      process.chdir(tempParent);
+
+      const result = await scanRepoForRequestedPackages('repo', ['zod']);
+
+      expect(result.repo.root).toBe('repo');
+      expect(result.packages[0]?.declaredVersions).toEqual(
+        expect.arrayContaining(['^4.3.6', '^5.0.0']),
+      );
+    } finally {
+      process.chdir(previousCwd);
+      await rm(tempParent, { recursive: true, force: true });
     }
   });
 });
