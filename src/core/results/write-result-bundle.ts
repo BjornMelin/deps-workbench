@@ -1,4 +1,4 @@
-import { mkdir } from 'node:fs/promises';
+import { mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
@@ -85,6 +85,7 @@ export async function writeResultBundle(
     input.prepBundle.manifest.runId,
   );
   await mkdir(resultRoot, { recursive: true });
+  const openQuestionsPath = path.join(resultRoot, 'open_questions.json');
 
   const resultFiles = {
     executiveBrief: path.join(resultRoot, 'executive_brief.md'),
@@ -96,9 +97,7 @@ export async function writeResultBundle(
     ),
     validationChecklist: path.join(resultRoot, 'validation_checklist.json'),
     openQuestions:
-      input.synthesis.openQuestions.length > 0
-        ? path.join(resultRoot, 'open_questions.json')
-        : undefined,
+      input.synthesis.openQuestions.length > 0 ? openQuestionsPath : undefined,
   };
 
   const decisionReport = decisionReportSchema.parse({
@@ -199,7 +198,7 @@ export async function writeResultBundle(
     ),
     openQuestions && resultFiles.openQuestions
       ? writeJsonFileAtomic(resultFiles.openQuestions, openQuestions)
-      : Promise.resolve(),
+      : rm(openQuestionsPath, { force: true }),
   ]);
 
   return {

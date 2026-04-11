@@ -743,6 +743,61 @@ describe('analyzePreparedRun', () => {
     }
   });
 
+  for (const semanticOutcome of [
+    'blocked',
+    'degraded_reference_only',
+  ] as const) {
+    test(`does not auto-escalate implementation runs that already returned ${semanticOutcome}`, async () => {
+      const tempRepo = await makeTempRepo();
+      let modelCalls = 0;
+
+      try {
+        await writePrepFixture(
+          tempRepo,
+          `run_stop_outcome_${semanticOutcome}`,
+          {
+            mode: 'implementation',
+            targetVersion: '5.0.0',
+            occurrenceCount: 5,
+            diffSummaryText:
+              ' 16 files changed, 220 insertions(+), 70 deletions(-)',
+          },
+        );
+
+        const result = await analyzePreparedRun(
+          {
+            repoRoot: tempRepo,
+            runId: `run_stop_outcome_${semanticOutcome}`,
+          },
+          {
+            now: () => new Date('2026-04-11T08:24:00.000Z'),
+            modelExecutor: async ({ routingDecision }) => {
+              modelCalls += 1;
+
+              expect(routingDecision.selectedTier).toBe('mini');
+
+              return {
+                synthesis: synthesisFixture({
+                  semanticOutcome,
+                  executiveBrief: `Initial synthesis returned ${semanticOutcome}.`,
+                  summary: `Initial synthesis returned ${semanticOutcome}.`,
+                }),
+                modelUsed: 'gpt-5.4-mini',
+              };
+            },
+          },
+        );
+
+        expect(modelCalls).toBe(1);
+        expect(result.manifest.routingDecision.selectedTier).toBe('mini');
+        expect(result.manifest.recovery).toHaveLength(0);
+        expect(result.manifest.outcomeClass).toBe(semanticOutcome);
+      } finally {
+        await rm(tempRepo, { recursive: true, force: true });
+      }
+    });
+  }
+
   test('writes a schema-valid result bundle', async () => {
     const tempRepo = await makeTempRepo();
 
@@ -819,6 +874,20 @@ describe('analyzePreparedRun', () => {
           JSON.parse(await Bun.file(openQuestionsPath ?? '').text()) as unknown,
         ).questions,
       ).toHaveLength(1);
+
+      const rerunResult = await analyzePreparedRun(
+        { repoRoot: tempRepo, runId: 'run_valid' },
+        {
+          now: () => new Date('2026-04-11T08:26:00.000Z'),
+          modelExecutor: async () => ({
+            synthesis: synthesisFixture(),
+            modelUsed: 'gpt-5.4-mini',
+          }),
+        },
+      );
+
+      expect(rerunResult.manifest.resultFiles.openQuestions).toBeUndefined();
+      expect(await Bun.file(openQuestionsPath ?? '').exists()).toBe(false);
     } finally {
       await rm(tempRepo, { recursive: true, force: true });
     }

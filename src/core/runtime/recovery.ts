@@ -42,9 +42,17 @@ export function shouldAttemptEscalationRecovery(input: {
     return false;
   }
 
+  if (
+    input.synthesis.semanticOutcome === 'ready_to_implement' ||
+    input.synthesis.semanticOutcome === 'blocked' ||
+    input.synthesis.semanticOutcome === 'degraded_reference_only'
+  ) {
+    return false;
+  }
+
   return (
     unverifiedCount >= 2 ||
-    input.synthesis.semanticOutcome !== 'ready_to_implement'
+    input.synthesis.semanticOutcome === 'review_required'
   );
 }
 
