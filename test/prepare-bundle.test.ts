@@ -3,7 +3,10 @@ import { cp, mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-
+import {
+  parseRepositoryFromSourcePath,
+  parseVersionFromSourcePath,
+} from '../src/core/collectors/opensrc';
 import { createPrepBundle } from '../src/core/prep/prepare-bundle';
 import {
   diffArtifactSchema,
@@ -81,6 +84,14 @@ function availablePreflight(): PreflightSummary {
 }
 
 describe('createPrepBundle', () => {
+  test('parses OpenSRC cache paths with Windows separators', () => {
+    const sourcePath =
+      'C:\\Users\\bjorn\\.opensrc\\repos\\github.com\\colinhacks\\zod\\4.4.0';
+
+    expect(parseRepositoryFromSourcePath(sourcePath)).toBe('colinhacks/zod');
+    expect(parseVersionFromSourcePath(sourcePath)).toBe('4.4.0');
+  });
+
   test('writes the canonical prep bundle artifacts', async () => {
     const tempRepo = await makeTempRepo();
 
@@ -517,6 +528,159 @@ describe('createPrepBundle', () => {
       expect(sourceCalls).toBe(1);
       expect(docsCalls).toBe(1);
     } finally {
+      await rm(tempRepo, { recursive: true, force: true });
+    }
+  });
+
+  test('starts usage collection in parallel with source path collection', async () => {
+    const tempRepo = await makeTempRepo();
+    const startedFamilies: string[] = [];
+    let releaseSourcePaths: (() => void) | undefined;
+    const sourcePathsReady = new Promise<void>((resolve) => {
+      releaseSourcePaths = resolve;
+    });
+    const maybeReleaseSourcePaths = () => {
+      if (
+        startedFamilies.includes('source_paths') &&
+        startedFamilies.includes('usage')
+      ) {
+        releaseSourcePaths?.();
+      }
+    };
+
+    try {
+      await createPrepBundle(
+        {
+          repoRoot: tempRepo,
+          packages: ['zod'],
+          runId: 'run_fixture_parallel_a',
+        },
+        {
+          now: () => new Date('2026-04-10T12:15:00.000Z'),
+          probeTools: async () => availablePreflight(),
+          collectSourcePaths: async ({ generatedAt, request }) => {
+            startedFamilies.push('source_paths');
+            maybeReleaseSourcePaths();
+            await sourcePathsReady;
+            return sourcePathsArtifactSchema.parse({
+              schemaVersion: '1',
+              family: 'source_paths',
+              generatedAt,
+              packages: [
+                {
+                  package: 'zod',
+                  repository: 'colinhacks/zod',
+                  status: 'collected',
+                  current: {
+                    spec: getRequestedPackageSpec(request),
+                    version: '4.3.6',
+                    path: '/tmp/opensrc/zod/4.3.6',
+                  },
+                },
+              ],
+              provenance: {
+                sourceFamilies: ['opensrc'],
+                commands: [],
+                freshness: 'fresh',
+                notes: [],
+              },
+            });
+          },
+          collectUsage: async ({ generatedAt }) => {
+            startedFamilies.push('usage');
+            maybeReleaseSourcePaths();
+            return usageArtifactSchema.parse({
+              schemaVersion: '1',
+              family: 'usage',
+              generatedAt,
+              packages: [
+                {
+                  package: 'zod',
+                  status: 'collected',
+                  whyText: 'zod@4.3.6',
+                  auditJson: {},
+                  declaredVersions: ['^4.3.6'],
+                },
+              ],
+              provenance: {
+                sourceFamilies: ['bun'],
+                commands: [],
+                freshness: 'fresh',
+                notes: [],
+              },
+            });
+          },
+          collectDocs: async ({ generatedAt }) =>
+            docsArtifactSchema.parse({
+              schemaVersion: '1',
+              family: 'docs',
+              generatedAt,
+              packages: [
+                {
+                  package: 'zod',
+                  query: 'migration guide breaking changes latest version',
+                  status: 'degraded',
+                  error: 'ctx7 unavailable during preflight',
+                },
+              ],
+              provenance: {
+                sourceFamilies: ['ctx7'],
+                commands: [],
+                freshness: 'fresh',
+                notes: [],
+              },
+            }),
+          collectReleases: async ({ generatedAt }) =>
+            releasesArtifactSchema.parse({
+              schemaVersion: '1',
+              family: 'releases',
+              generatedAt,
+              packages: [
+                {
+                  package: 'zod',
+                  repository: 'colinhacks/zod',
+                  status: 'degraded',
+                  releases: [],
+                  error: 'gh unavailable during preflight',
+                },
+              ],
+              provenance: {
+                sourceFamilies: ['gh'],
+                commands: [],
+                freshness: 'fresh',
+                notes: [],
+              },
+            }),
+          collectDiff: async ({ generatedAt }) =>
+            diffArtifactSchema.parse({
+              schemaVersion: '1',
+              family: 'diff',
+              generatedAt,
+              packages: [
+                {
+                  package: 'zod',
+                  status: 'skipped',
+                  currentPath: '/tmp/opensrc/zod/4.3.6',
+                  error:
+                    'source diff requires both current and target source paths',
+                },
+              ],
+              provenance: {
+                sourceFamilies: ['git', 'opensrc'],
+                commands: [],
+                freshness: 'fresh',
+                notes: [],
+              },
+            }),
+        },
+      );
+
+      expect(startedFamilies.slice(0, 2).sort()).toEqual([
+        'source_paths',
+        'usage',
+      ]);
+    } finally {
+      releaseSourcePaths?.();
       await rm(tempRepo, { recursive: true, force: true });
     }
   });

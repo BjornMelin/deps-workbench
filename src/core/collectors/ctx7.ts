@@ -60,9 +60,7 @@ export async function collectDocsArtifact(input: {
     });
   }
 
-  const packages: DocsPackageEntry[] = [];
-
-  for (const packageName of input.request.packages) {
+  const libraryLookups = input.request.packages.map(async (packageName) => {
     const normalizedPackageName = stripVersionFromPackageSpec(packageName);
     const libraryCommand = [
       'ctx7',
@@ -78,13 +76,14 @@ export async function collectDocsArtifact(input: {
     });
 
     if (libraryResult.exitCode !== 0 || libraryResult.stdout.length === 0) {
-      packages.push({
-        package: normalizedPackageName,
-        query: DEFAULT_DOC_QUERY,
-        status: 'degraded',
-        error: libraryResult.stderr || 'ctx7 library lookup failed',
-      });
-      continue;
+      return {
+        packageEntry: {
+          package: normalizedPackageName,
+          query: DEFAULT_DOC_QUERY,
+          status: 'degraded',
+          error: libraryResult.stderr || 'ctx7 library lookup failed',
+        } satisfies DocsPackageEntry,
+      };
     }
 
     let resolvedLibraries: Array<{ id?: string }>;
@@ -94,33 +93,48 @@ export async function collectDocsArtifact(input: {
         id?: string;
       }>;
     } catch {
-      packages.push({
-        package: normalizedPackageName,
-        query: DEFAULT_DOC_QUERY,
-        status: 'degraded',
-        raw: { libraryText: libraryResult.stdout },
-        error: 'ctx7 library returned invalid JSON',
-      });
-      continue;
+      return {
+        packageEntry: {
+          package: normalizedPackageName,
+          query: DEFAULT_DOC_QUERY,
+          status: 'degraded',
+          raw: { libraryText: libraryResult.stdout },
+          error: 'ctx7 library returned invalid JSON',
+        } satisfies DocsPackageEntry,
+      };
     }
 
     const libraryId = resolvedLibraries[0]?.id;
 
     if (!libraryId) {
-      packages.push({
-        package: normalizedPackageName,
-        query: DEFAULT_DOC_QUERY,
-        status: 'degraded',
-        raw: { library: resolvedLibraries },
-        error: 'ctx7 returned no matching library id',
-      });
-      continue;
+      return {
+        packageEntry: {
+          package: normalizedPackageName,
+          query: DEFAULT_DOC_QUERY,
+          status: 'degraded',
+          raw: { library: resolvedLibraries },
+          error: 'ctx7 returned no matching library id',
+        } satisfies DocsPackageEntry,
+      };
+    }
+
+    return {
+      normalizedPackageName,
+      libraryId,
+      resolvedLibraries,
+    };
+  });
+
+  const libraryResults = await Promise.all(libraryLookups);
+  const docsLookups = libraryResults.map(async (libraryResult) => {
+    if ('packageEntry' in libraryResult) {
+      return libraryResult.packageEntry;
     }
 
     const docsCommand = [
       'ctx7',
       'docs',
-      libraryId,
+      libraryResult.libraryId,
       DEFAULT_DOC_QUERY,
       '--json',
     ];
@@ -131,15 +145,14 @@ export async function collectDocsArtifact(input: {
     });
 
     if (docsResult.exitCode !== 0) {
-      packages.push({
-        package: normalizedPackageName,
+      return {
+        package: libraryResult.normalizedPackageName,
         query: DEFAULT_DOC_QUERY,
-        libraryId,
+        libraryId: libraryResult.libraryId,
         status: 'degraded',
-        raw: { library: resolvedLibraries },
+        raw: { library: libraryResult.resolvedLibraries },
         error: docsResult.stderr || 'ctx7 docs query failed',
-      });
-      continue;
+      } satisfies DocsPackageEntry;
     }
 
     let docsRaw: unknown;
@@ -147,31 +160,32 @@ export async function collectDocsArtifact(input: {
     try {
       docsRaw = parseJsonResult(docsResult.stdout);
     } catch {
-      packages.push({
-        package: normalizedPackageName,
+      return {
+        package: libraryResult.normalizedPackageName,
         query: DEFAULT_DOC_QUERY,
-        libraryId,
+        libraryId: libraryResult.libraryId,
         status: 'degraded',
         raw: {
-          library: resolvedLibraries,
+          library: libraryResult.resolvedLibraries,
           docsText: docsResult.stdout,
         },
         error: 'ctx7 docs returned invalid JSON',
-      });
-      continue;
+      } satisfies DocsPackageEntry;
     }
 
-    packages.push({
-      package: normalizedPackageName,
+    return {
+      package: libraryResult.normalizedPackageName,
       query: DEFAULT_DOC_QUERY,
-      libraryId,
+      libraryId: libraryResult.libraryId,
       status: 'collected',
       raw: {
-        library: resolvedLibraries,
+        library: libraryResult.resolvedLibraries,
         docs: docsRaw,
       },
-    });
-  }
+    } satisfies DocsPackageEntry;
+  });
+
+  const packages = await Promise.all(docsLookups);
 
   return docsArtifactSchema.parse({
     schemaVersion: '1',

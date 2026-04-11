@@ -11,6 +11,10 @@ import { stripVersionFromPackageSpec } from '../packages/package-spec';
 
 const OPENSRC_TIMEOUT_MS = 30_000;
 
+function normalizeSourcePath(sourcePath: string): string {
+  return sourcePath.replaceAll('\\', '/').replace(/\/+$/, '');
+}
+
 /**
  * Extracts `owner/repo` from an opensrc cache path containing `/repos/github.com/...`.
  *
@@ -20,7 +24,7 @@ const OPENSRC_TIMEOUT_MS = 30_000;
 export function parseRepositoryFromSourcePath(
   sourcePath: string,
 ): string | undefined {
-  const match = sourcePath.match(
+  const match = normalizeSourcePath(sourcePath).match(
     /\/repos\/github\.com\/([^/]+)\/([^/]+)\/[^/]+$/,
   );
   if (!match) {
@@ -39,7 +43,7 @@ export function parseRepositoryFromSourcePath(
 export function parseVersionFromSourcePath(
   sourcePath: string,
 ): string | undefined {
-  const segments = sourcePath.split('/').filter(Boolean);
+  const segments = normalizeSourcePath(sourcePath).split('/').filter(Boolean);
   return segments.at(-1);
 }
 

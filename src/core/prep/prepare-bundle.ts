@@ -357,7 +357,7 @@ export async function createPrepBundle(
     request.packages,
   );
 
-  const sourcePathsCached = await withArtifactCache({
+  const sourcePathsPromise = withArtifactCache({
     repoRoot,
     family: 'source_paths',
     cacheInput: {
@@ -375,7 +375,29 @@ export async function createPrepBundle(
       }),
   });
 
-  const docsCached = await withArtifactCache({
+  const usagePromise = withArtifactCache({
+    repoRoot,
+    family: 'usage',
+    cacheInput: {
+      packages: repoScan.packages,
+      preflight,
+    },
+    schema: usageArtifactSchema,
+    producer: () =>
+      (dependencies.collectUsage ?? collectUsageArtifact)({
+        repoRoot,
+        generatedAt,
+        preflight,
+        packages: repoScan.packages,
+      }),
+  });
+
+  const [sourcePathsCached, usageCached] = await Promise.all([
+    sourcePathsPromise,
+    usagePromise,
+  ]);
+
+  const docsPromise = withArtifactCache({
     repoRoot,
     family: 'docs',
     cacheInput: {
@@ -393,7 +415,7 @@ export async function createPrepBundle(
       }),
   });
 
-  const releasesCached = await withArtifactCache({
+  const releasesPromise = withArtifactCache({
     repoRoot,
     family: 'releases',
     cacheInput: {
@@ -410,24 +432,7 @@ export async function createPrepBundle(
       }),
   });
 
-  const usageCached = await withArtifactCache({
-    repoRoot,
-    family: 'usage',
-    cacheInput: {
-      packages: repoScan.packages,
-      preflight,
-    },
-    schema: usageArtifactSchema,
-    producer: () =>
-      (dependencies.collectUsage ?? collectUsageArtifact)({
-        repoRoot,
-        generatedAt,
-        preflight,
-        packages: repoScan.packages,
-      }),
-  });
-
-  const diffCached = await withArtifactCache({
+  const diffPromise = withArtifactCache({
     repoRoot,
     family: 'diff',
     cacheInput: {
@@ -441,6 +446,12 @@ export async function createPrepBundle(
         sourcePaths: sourcePathsCached.value,
       }),
   });
+
+  const [docsCached, releasesCached, diffCached] = await Promise.all([
+    docsPromise,
+    releasesPromise,
+    diffPromise,
+  ]);
 
   const sourcePaths = applyCacheMetadata(
     sourcePathsCached.value,
