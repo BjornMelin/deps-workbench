@@ -1,0 +1,8 @@
+{
+  "name": "fixture-app",
+  "private": true,
+  "dependencies": {
+    "zod": "^4.3.6",
+    "hono": "^4.7.0"
+  }
+}
