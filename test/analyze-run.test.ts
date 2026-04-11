@@ -481,7 +481,9 @@ describe('buildRoutingDecision', () => {
       const decision = buildRoutingDecision({ prepBundle, policy });
 
       expect(decision.selectedTier).toBe('full');
-      expect(decision.escalationScore).toBeGreaterThanOrEqual(72);
+      expect(decision.escalationScore).toBeGreaterThanOrEqual(
+        decision.thresholds.fullEscalationMin,
+      );
     } finally {
       await rm(tempRepo, { recursive: true, force: true });
     }
