@@ -4,7 +4,43 @@ set -eu
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT" || exit 1
 
+STASH_REF=""
+
+restore_unstaged_changes() {
+  if [ -n "$STASH_REF" ]; then
+    git stash apply --quiet "$STASH_REF" >/dev/null || {
+      echo "Failed to restore unstaged changes after pre-commit" >&2
+      exit 1
+    }
+    git stash drop --quiet "$STASH_REF" >/dev/null || {
+      echo "Failed to drop temporary pre-commit stash" >&2
+      exit 1
+    }
+  fi
+}
+
+stash_unstaged_changes() {
+  if git diff --quiet --ignore-submodules -- &&
+    [ -z "$(git ls-files --others --exclude-standard)" ]; then
+    return
+  fi
+
+  before_ref="$(git rev-parse -q --verify refs/stash 2>/dev/null || true)"
+  git stash push --keep-index --include-untracked --quiet --message "deps-workbench-pre-commit" >/dev/null
+  after_ref="$(git rev-parse -q --verify refs/stash 2>/dev/null || true)"
+
+  if [ "$before_ref" != "$after_ref" ]; then
+    STASH_REF="$after_ref"
+  fi
+}
+
+trap 'status=$?; restore_unstaged_changes; exit $status' EXIT HUP INT TERM
+
 bun run hook:pre-commit-format
+stash_unstaged_changes
 
 bun run typecheck
 bun run test
+
+trap - EXIT HUP INT TERM
+restore_unstaged_changes

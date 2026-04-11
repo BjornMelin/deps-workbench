@@ -18,12 +18,44 @@ function diffProvenance(notes: string[] = []): ArtifactProvenance {
   };
 }
 
-function diffResultCollected(result: CommandResult): boolean {
+export function diffResultCollected(result: CommandResult): boolean {
   if (result.exitCode === 0) {
     return true;
   }
 
   return result.exitCode === 1 && result.stdout.length > 0;
+}
+
+export function diffResultError(
+  result: CommandResult,
+  collected: boolean,
+): string | undefined {
+  if (collected) {
+    return undefined;
+  }
+
+  if (result.timedOut) {
+    return result.stderr || 'git diff --no-index timed out';
+  }
+
+  return result.stderr || 'git diff --no-index failed';
+}
+
+export function buildDiffPackageEntry(input: {
+  entry: SourcePathsArtifact['packages'][number];
+  result: CommandResult;
+}): DiffPackageEntry {
+  const collected = diffResultCollected(input.result);
+
+  return {
+    package: input.entry.package,
+    status: collected ? 'collected' : 'degraded',
+    currentPath: input.entry.current?.path,
+    targetPath: input.entry.target?.path,
+    summaryText:
+      input.result.stdout.length > 0 ? input.result.stdout : undefined,
+    error: diffResultError(input.result, collected),
+  };
 }
 
 /**
@@ -94,18 +126,12 @@ export async function collectDiffArtifact(input: {
       continue;
     }
 
-    const collected = diffResultCollected(result);
-
-    packages.push({
-      package: entry.package,
-      status: collected ? 'collected' : 'degraded',
-      currentPath: entry.current.path,
-      targetPath: entry.target.path,
-      summaryText: result.stdout.length > 0 ? result.stdout : undefined,
-      error: collected
-        ? undefined
-        : result.stderr || 'git diff --no-index failed',
-    });
+    packages.push(
+      buildDiffPackageEntry({
+        entry,
+        result,
+      }),
+    );
   }
 
   return diffArtifactSchema.parse({
