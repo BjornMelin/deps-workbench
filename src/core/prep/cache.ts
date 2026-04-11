@@ -24,6 +24,8 @@ function createCacheHash(input: unknown): string {
  * Returns a cached artifact JSON when the hash of `cacheInput` matches an existing file; otherwise runs `producer` and persists.
  *
  * @typeParam T - Must match `schema` (typically an artifact family type).
+ * @param input - Cache metadata, validation schema, and producer for one artifact family.
+ * @returns Cached or freshly produced artifact value with stable key and freshness state.
  */
 export async function withArtifactCache<T>(input: {
   repoRoot: string;
@@ -41,11 +43,15 @@ export async function withArtifactCache<T>(input: {
   const cacheFilePath = path.join(cacheDirectory, 'artifact.json');
 
   if (await Bun.file(cacheFilePath).exists()) {
-    return {
-      value: await readJsonFile(cacheFilePath, input.schema),
-      cacheKey,
-      freshness: 'reused',
-    };
+    try {
+      return {
+        value: await readJsonFile(cacheFilePath, input.schema),
+        cacheKey,
+        freshness: 'reused',
+      };
+    } catch {
+      // Regenerate invalid cache entries instead of turning a cache miss into a hard failure.
+    }
   }
 
   const value = await input.producer();

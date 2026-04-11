@@ -5,7 +5,7 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT" || exit 1
 
 # Paths already staged for this commit (Biome only touches these with --staged).
-STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
 
 bun run biome:write:staged
 

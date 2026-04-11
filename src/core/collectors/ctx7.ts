@@ -7,7 +7,7 @@ import type {
 } from '../../schemas';
 import { docsArtifactSchema } from '../../schemas';
 import { runCommand } from '../exec/run-command';
-import { stripVersionFromPackageSpec } from './opensrc';
+import { stripVersionFromPackageSpec } from '../packages/package-spec';
 
 const CTX7_TIMEOUT_MS = 45_000;
 const DEFAULT_DOC_QUERY = 'migration guide breaking changes latest version';
@@ -84,9 +84,23 @@ export async function collectDocsArtifact(input: {
       continue;
     }
 
-    const resolvedLibraries = parseJsonResult(libraryResult.stdout) as Array<{
-      id?: string;
-    }>;
+    let resolvedLibraries: Array<{ id?: string }>;
+
+    try {
+      resolvedLibraries = parseJsonResult(libraryResult.stdout) as Array<{
+        id?: string;
+      }>;
+    } catch {
+      packages.push({
+        package: normalizedPackageName,
+        query: DEFAULT_DOC_QUERY,
+        status: 'degraded',
+        raw: { libraryText: libraryResult.stdout },
+        error: 'ctx7 library returned invalid JSON',
+      });
+      continue;
+    }
+
     const libraryId = resolvedLibraries[0]?.id;
 
     if (!libraryId) {
@@ -113,22 +127,46 @@ export async function collectDocsArtifact(input: {
       timeoutMs: CTX7_TIMEOUT_MS,
     });
 
+    if (docsResult.exitCode !== 0) {
+      packages.push({
+        package: normalizedPackageName,
+        query: DEFAULT_DOC_QUERY,
+        libraryId,
+        status: 'degraded',
+        raw: { library: resolvedLibraries },
+        error: docsResult.stderr || 'ctx7 docs query failed',
+      });
+      continue;
+    }
+
+    let docsRaw: unknown;
+
+    try {
+      docsRaw = parseJsonResult(docsResult.stdout);
+    } catch {
+      packages.push({
+        package: normalizedPackageName,
+        query: DEFAULT_DOC_QUERY,
+        libraryId,
+        status: 'degraded',
+        raw: {
+          library: resolvedLibraries,
+          docsText: docsResult.stdout,
+        },
+        error: 'ctx7 docs returned invalid JSON',
+      });
+      continue;
+    }
+
     packages.push({
       package: normalizedPackageName,
       query: DEFAULT_DOC_QUERY,
       libraryId,
-      status: docsResult.exitCode === 0 ? 'collected' : 'degraded',
-      raw:
-        docsResult.stdout.length > 0
-          ? {
-              library: resolvedLibraries,
-              docs: parseJsonResult(docsResult.stdout),
-            }
-          : { library: resolvedLibraries },
-      error:
-        docsResult.exitCode === 0
-          ? undefined
-          : docsResult.stderr || 'ctx7 docs query failed',
+      status: 'collected',
+      raw: {
+        library: resolvedLibraries,
+        docs: docsRaw,
+      },
     });
   }
 

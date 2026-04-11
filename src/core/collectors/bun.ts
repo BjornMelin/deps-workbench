@@ -7,7 +7,7 @@ import type {
 } from '../../schemas';
 import { usageArtifactSchema } from '../../schemas';
 import { runCommand } from '../exec/run-command';
-import { stripVersionFromPackageSpec } from './opensrc';
+import { stripVersionFromPackageSpec } from '../packages/package-spec';
 
 const BUN_TIMEOUT_MS = 30_000;
 

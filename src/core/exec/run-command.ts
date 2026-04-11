@@ -12,6 +12,10 @@ export type CommandResult = {
  * Spawns a command with Bun, optional working directory and timeout; reads stdout/stderr fully.
  *
  * On timeout, the process is killed and `exitCode` is `null` with `timedOut` set.
+ *
+ * @param command - Executable and arguments to spawn.
+ * @param options - Optional cwd, timeout, and environment overrides.
+ * @returns Completed subprocess result including trimmed output and timeout state.
  */
 export async function runCommand(
   command: string[],
@@ -53,6 +57,10 @@ export async function runCommand(
 
   if (timeoutHandle !== undefined) {
     clearTimeout(timeoutHandle);
+  }
+
+  if (timedOut) {
+    await subprocess.exited;
   }
 
   const [stdout, stderr] = await Promise.all([

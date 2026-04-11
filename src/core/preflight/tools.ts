@@ -85,9 +85,12 @@ async function probeTool(tool: ToolSpec): Promise<ToolProbe> {
     };
   }
 
-  const versionResult = await runCommand(tool.versionCommand, {
-    timeoutMs: DEFAULT_TIMEOUT_MS,
-  });
+  const versionResult = await runCommand(
+    [executablePath, ...tool.versionCommand.slice(1)],
+    {
+      timeoutMs: DEFAULT_TIMEOUT_MS,
+    },
+  );
 
   const version = versionResult.stdout.split('\n')[0]?.trim();
   const notes: string[] = [];
@@ -115,6 +118,8 @@ async function probeTool(tool: ToolSpec): Promise<ToolProbe> {
 
 /**
  * Probes `bun`, `opensrc`, `ctx7`, and `gh` on `PATH`, records versions, and classifies missing required vs optional tools.
+ *
+ * @returns Structured tool probe summary, including missing required and optional tools.
  */
 export async function probeExternalTools(): Promise<PreflightSummary> {
   const tools = await Promise.all(TOOL_SPECS.map((tool) => probeTool(tool)));

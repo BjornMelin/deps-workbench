@@ -5,6 +5,7 @@ import type {
   DependencyOccurrence,
   PrepRepoSummary,
 } from '../../schemas';
+import { stripVersionFromPackageSpec } from '../packages/package-spec';
 
 const DEPENDENCY_FIELDS = [
   'dependencies',
@@ -49,9 +50,7 @@ function extractWorkspacePatterns(packageJson: PackageJsonRecord): string[] {
 }
 
 async function readPackageJson(filePath: string): Promise<PackageJsonRecord> {
-  return (
-    (JSON.parse(await Bun.file(filePath).text()) as PackageJsonRecord) ?? {}
-  );
+  return JSON.parse(await Bun.file(filePath).text()) as PackageJsonRecord;
 }
 
 /** Workspace scan: repo summary plus per-requested-package dependency metadata. */
@@ -62,6 +61,9 @@ export type RepoPackageScan = {
 
 /**
  * Resolves root `package.json` plus workspace globs to a sorted list of manifest paths.
+ *
+ * @param repoRoot - Repository root containing the workspace manifests.
+ * @returns Sorted absolute manifest paths for the root package and all discovered workspaces.
  */
 export async function discoverPackageJsonFiles(
   repoRoot: string,
@@ -84,6 +86,10 @@ export async function discoverPackageJsonFiles(
 
 /**
  * Finds declared dependency specs for the given package names across all discovered manifests.
+ *
+ * @param repoRoot - Repository root containing the workspace manifests.
+ * @param packages - Requested package specs to match across dependency fields.
+ * @returns Repo summary plus per-package occurrences and declared versions.
  */
 export async function scanRepoForRequestedPackages(
   repoRoot: string,
@@ -96,7 +102,11 @@ export async function scanRepoForRequestedPackages(
   const lockfilePresent = await Bun.file(
     path.join(repoRoot, 'bun.lock'),
   ).exists();
-  const requestedPackages = Array.from(new Set(packages));
+  const requestedPackages = Array.from(
+    new Set(
+      packages.map((packageSpec) => stripVersionFromPackageSpec(packageSpec)),
+    ),
+  );
 
   const entries = new Map<string, DependencyOccurrence[]>();
 
