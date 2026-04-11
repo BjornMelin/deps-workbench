@@ -19,6 +19,8 @@ export function shouldAttemptEscalationRecovery(input: {
   policy: Policy;
   recoveryCount: number;
 }): boolean {
+  const unverifiedClaimsEscalationThreshold = 2;
+
   if (input.recoveryCount >= input.policy.recovery.maxAutomaticHops) {
     return false;
   }
@@ -40,7 +42,7 @@ export function shouldAttemptEscalationRecovery(input: {
   const unverifiedCount = input.synthesis.claims.filter(
     (claim) => claim.bucket === 'UNVERIFIED',
   ).length;
-  // Two unresolved claims is the smallest signal that uncertainty is broader
+  // Two unverified claims is the smallest signal that uncertainty is broader
   // than a single local gap, so the bounded retry only triggers at that point.
   const reachedRecoveryEscalationMin =
     input.routingDecision.escalationScore >=
@@ -59,7 +61,7 @@ export function shouldAttemptEscalationRecovery(input: {
   }
 
   return (
-    unverifiedCount >= 2 ||
+    unverifiedCount >= unverifiedClaimsEscalationThreshold ||
     input.synthesis.semanticOutcome === 'review_required'
   );
 }

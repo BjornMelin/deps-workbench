@@ -551,6 +551,57 @@ describe('analyzePreparedRun', () => {
     }
   });
 
+  test('blocks implementation runs when a requested package is missing from metadata', async () => {
+    const tempRepo = await makeTempRepo();
+    let modelCalls = 0;
+
+    try {
+      const runId = 'run_missing_requested_package';
+      await writePrepFixture(tempRepo, runId, {
+        mode: 'implementation',
+        targetVersion: '4.4.0',
+      });
+
+      const manifestPath = path.join(
+        resolvePrepArtifactRoot(tempRepo, runId),
+        'manifest.json',
+      );
+      const manifest = prepManifestSchema.parse(
+        JSON.parse(await Bun.file(manifestPath).text()) as unknown,
+      );
+
+      await writeJsonFileAtomic(manifestPath, {
+        ...manifest,
+        request: {
+          ...manifest.request,
+          packages: ['zod', 'left-pad'],
+        },
+      });
+
+      const result = await analyzePreparedRun(
+        { repoRoot: tempRepo, runId },
+        {
+          now: () => new Date('2026-04-11T08:15:30.000Z'),
+          modelExecutor: async () => {
+            modelCalls += 1;
+            return {
+              synthesis: synthesisFixture(),
+              modelUsed: 'gpt-5.4-mini',
+            };
+          },
+        },
+      );
+
+      expect(modelCalls).toBe(0);
+      expect(result.manifest.outcomeClass).toBe('blocked');
+      expect(result.manifest.stopConditions).toContain(
+        'left-pad: dependency metadata is missing',
+      );
+    } finally {
+      await rm(tempRepo, { recursive: true, force: true });
+    }
+  });
+
   test('rejects prep bundles whose artifact files escape the run boundary', async () => {
     const tempRepo = await makeTempRepo();
     const runId = 'run_escape';

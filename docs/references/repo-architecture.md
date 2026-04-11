@@ -112,11 +112,13 @@ Major-version routing treats semver ranges/prefixes conservatively and counts
 The OpenAI analysis lane should request schema-typed output from the Agents SDK
 so synthesis results arrive as contract-validated structured data instead of
 free-form JSON text that must be reparsed manually.
-If the SDK cannot produce a final structured output, treat that as a blocked
-analysis path, map the run to `blocked` with `stop_blocked`, and stop before
-writing a misleading synthesis result. The runtime should guard `finalOutput`
-explicitly before proceeding, matching the same check used in
-`src/core/models/openai-analysis.ts`.
+If the SDK cannot produce a final structured output, or if parsing rejects the
+agent payload, treat that as a blocked analysis path, map the run to `blocked`
+with `stop_blocked`, and stop before writing a misleading synthesis result.
+The runtime should guard `finalOutput` explicitly before proceeding, matching
+the same check used in `src/core/models/openai-analysis.ts`, where missing
+`finalOutput` and `ModelBehaviorError` both fail the structured-output path
+instead of pretending synthesis succeeded.
 
 ## Recovery model
 

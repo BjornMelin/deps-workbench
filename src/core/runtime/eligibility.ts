@@ -88,6 +88,13 @@ function buildBundleFallbackClaim(detail: string): ResultClaim {
   };
 }
 
+function findPackageEntry<T extends { package: string }>(
+  packages: T[],
+  packageName: string,
+): T | undefined {
+  return packages.find((entry) => entry.package === packageName);
+}
+
 /**
  * Evaluates structural eligibility for synthesis based on prep bundle completeness.
  *
@@ -109,20 +116,21 @@ export function evaluateStructuralEligibility(
         )}`
       : null;
 
-  for (const packageEntry of prepBundle.meta.packages) {
-    const packageName = packageEntry.package;
-    const sourcePathsEntry = prepBundle.sourcePaths.packages.find(
-      (entry) => entry.package === packageName,
+  for (const packageName of prepBundle.manifest.request.packages) {
+    const metaEntry = findPackageEntry(prepBundle.meta.packages, packageName);
+    const sourcePathsEntry = findPackageEntry(
+      prepBundle.sourcePaths.packages,
+      packageName,
     );
-    const usageEntry = prepBundle.usage.packages.find(
-      (entry) => entry.package === packageName,
-    );
-    const diffEntry = prepBundle.diff.packages.find(
-      (entry) => entry.package === packageName,
-    );
+    const usageEntry = findPackageEntry(prepBundle.usage.packages, packageName);
+    const diffEntry = findPackageEntry(prepBundle.diff.packages, packageName);
 
     const blockers: string[] = [];
     const degradations: string[] = [];
+
+    if (metaEntry === undefined) {
+      blockers.push('dependency metadata is missing');
+    }
 
     if (sourcePathsEntry?.current === undefined) {
       blockers.push('current source resolution is missing');
