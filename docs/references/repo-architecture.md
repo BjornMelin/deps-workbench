@@ -71,8 +71,10 @@ including:
 `decision_report.json` carries the synthesis `semanticOutcome`, and blocked
 runs must preserve `semanticOutcome: blocked` there instead of collapsing to a
 degraded/reference-only fallback. `result_manifest.json` records the executed
-model in `modelUsed`, the routed model in `routingDecision.selectedModel`, and
-the read order now appends `open_questions.json` when that file exists.
+model in `modelUsed` when synthesis actually runs, the routed model in
+`routingDecision.selectedModel`, and the read order now appends
+`open_questions.json` when that file exists. Blocked runs may omit
+`modelUsed`; the CLI renders that state as `not executed`.
 
 Prepared bundles are loaded through the run directory boundary, and manifest-
 declared artifact files are validated so they stay inside the owning run before

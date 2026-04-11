@@ -32,13 +32,16 @@
   bundle.
 - Major-version scoring is semver-aware and treats `0.x -> 1.x` as a breaking
   boundary.
+- Policy routing thresholds are validated as an ordered band so the recovery
+  escalation floor stays below the full-escalation cutoff.
 - One automatic escalation retry is allowed only for `implementation` mode, and
   only when the routed score reaches `recoveryEscalationMin` and uncertainty
   signals still justify it.
 - Recovery metadata reports whether escalation actually resolved uncertainty,
   not just whether a second model call happened.
 - The written result bundle records the executor-selected model separately from
-  the routed model, and `open_questions.json` is added to the read order when
+  the routed model. Blocked runs may omit `modelUsed`, and the CLI renders that
+  state as `not executed`. `open_questions.json` is added to the read order when
   it exists.
 - Analyze synthesis is consumed as schema-typed agent output, not best-effort
   free-form JSON text parsing.
