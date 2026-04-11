@@ -33,6 +33,16 @@ describe('cli parsing', () => {
     });
   });
 
+  test('rejects flag-like tokens as missing option values', () => {
+    const parsed = parseCliArgs(['prepare', '--repo-root', '--json', 'zod']);
+
+    expect(parsed).toEqual({
+      kind: 'error',
+      message: 'Missing value for --repo-root',
+      exitCode: 2,
+    });
+  });
+
   test('reports placeholder commands clearly', async () => {
     const result = await runCli(['report']);
 

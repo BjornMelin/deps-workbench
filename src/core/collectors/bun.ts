@@ -91,11 +91,10 @@ export async function collectUsageArtifact(input: {
     auditSucceeded && auditResult.stdout.length > 0
       ? parseBunAuditJson(auditResult.stdout)
       : undefined;
-  const auditError =
-    auditSucceeded || auditResult.stdout.length > 0
-      ? undefined
-      : auditResult.stderr ||
-        (auditResult.timedOut ? 'bun audit timed out' : 'bun audit failed');
+  const auditError = auditSucceeded
+    ? undefined
+    : auditResult.stderr ||
+      (auditResult.timedOut ? 'bun audit timed out' : 'bun audit failed');
 
   if (auditSucceeded && auditResult.stdout.length === 0) {
     // Preserve the fact that the command succeeded but returned no JSON payload.

@@ -18,9 +18,19 @@ type ParsedCliCommand =
   | { kind: 'error'; message: string; exitCode: number };
 
 const PLACEHOLDER_COMMANDS = new Set(['analyze', 'report', 'run', 'resume']);
-const packageVersionPromise = Bun.file(
-  new URL('../package.json', import.meta.url),
-).json() as Promise<{ version?: string }>;
+
+async function readPackageVersion(): Promise<string> {
+  try {
+    const pkg = (await Bun.file(
+      new URL('../package.json', import.meta.url),
+    ).json()) as {
+      version?: string;
+    };
+    return pkg.version ?? '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
 
 /**
  * Single-line summary of supported commands and where execution policy is defined.
@@ -66,7 +76,7 @@ function requireOptionValue(
   flagName: string,
 ): string | ParsedCliCommand {
   const value = args[index + 1];
-  if (value === undefined) {
+  if (value === undefined || value.startsWith('--')) {
     return {
       kind: 'error',
       message: `Missing value for ${flagName}`,
@@ -231,7 +241,7 @@ export async function runCli(
   }
 
   if (parsed.kind === 'version') {
-    const version = (await packageVersionPromise).version ?? '0.0.0';
+    const version = await readPackageVersion();
 
     return {
       exitCode: 0,

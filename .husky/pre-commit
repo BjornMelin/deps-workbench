@@ -6,6 +6,24 @@ cd "$REPO_ROOT" || exit 1
 
 # Paths already staged for this commit (Biome only touches these with --staged).
 STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
+STASH_NAME="deps-workbench-pre-commit-$$"
+STASHED=0
+
+restore_unstaged_changes() {
+  if [ "$STASHED" -eq 1 ]; then
+    git stash pop --index --quiet >/dev/null || {
+      echo "Failed to restore unstaged changes after pre-commit" >&2
+      exit 1
+    }
+  fi
+}
+
+if ! git diff --quiet --ignore-submodules --; then
+  git stash push --keep-index --quiet --message "$STASH_NAME" >/dev/null
+  STASHED=1
+fi
+
+trap 'status=$?; restore_unstaged_changes; exit $status' EXIT HUP INT TERM
 
 bun run biome:write:staged
 
@@ -19,3 +37,6 @@ fi
 
 bun run typecheck
 bun run test
+
+trap - EXIT HUP INT TERM
+restore_unstaged_changes
