@@ -40,6 +40,8 @@ export function shouldAttemptEscalationRecovery(input: {
   const unverifiedCount = input.synthesis.claims.filter(
     (claim) => claim.bucket === 'UNVERIFIED',
   ).length;
+  // Two unresolved claims is the smallest signal that uncertainty is broader
+  // than a single local gap, so the bounded retry only triggers at that point.
   const reachedRecoveryEscalationMin =
     input.routingDecision.escalationScore >=
     input.policy.modelRouting.thresholds.recoveryEscalationMin;

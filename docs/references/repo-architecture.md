@@ -113,7 +113,10 @@ The OpenAI analysis lane should request schema-typed output from the Agents SDK
 so synthesis results arrive as contract-validated structured data instead of
 free-form JSON text that must be reparsed manually.
 If the SDK cannot produce a final structured output, treat that as a blocked
-analysis path and stop before writing a misleading synthesis result.
+analysis path, map the run to `blocked` with `stop_blocked`, and stop before
+writing a misleading synthesis result. The runtime should guard `finalOutput`
+explicitly before proceeding, matching the same check used in
+`src/core/models/openai-analysis.ts`.
 
 ## Recovery model
 
