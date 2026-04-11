@@ -89,13 +89,14 @@ From repo root: `bun run <script>`; `biome` and `tsc` come from `node_modules`.
 bun run check # biome:ci + typecheck + test; default verification
 bun run biome:ci # Biome CI check, no writes (CI biome job)
 bun run biome:write # format + safe lint fixes; biome.json file scope
-bun run biome:write:staged # staged files only; used by .husky/pre-commit
+bun run biome:write:staged # manual staged-file check/write; not partial-staging safe
+bun run hook:pre-commit-format # formats staged blobs via Bun before .husky/pre-commit checks
 bun run typecheck # tsc --noEmit
 bun run test # bun test
 bun run dev # CLI: src/cli.ts
 bun run start # same as dev
 bun run prepare # Husky hooks; also runs on bun install
-# .husky/pre-commit: biome:write:staged, re-stage, typecheck, test
+# .husky/pre-commit: hook:pre-commit-format, typecheck, test
 HUSKY=0 git commit # commit once with hooks off
 git commit --no-verify # skip hooks for this commit
 ```

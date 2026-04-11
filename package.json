@@ -13,6 +13,7 @@
     "biome:write": "biome check --write .",
     "biome:write:staged": "biome check --write --staged .",
     "biome:ci": "biome ci .",
+    "hook:pre-commit-format": "bun run src/hooks/pre-commit-format.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "check": "bun run biome:ci && bun run typecheck && bun run test",

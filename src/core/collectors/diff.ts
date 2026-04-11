@@ -18,6 +18,14 @@ function diffProvenance(notes: string[] = []): ArtifactProvenance {
   };
 }
 
+function diffResultCollected(result: CommandResult): boolean {
+  if (result.exitCode === 0) {
+    return true;
+  }
+
+  return result.exitCode === 1 && result.stdout.length > 0;
+}
+
 /**
  * Runs `git diff --no-index --stat` between resolved current and target source paths when both differ.
  *
@@ -86,24 +94,17 @@ export async function collectDiffArtifact(input: {
       continue;
     }
 
+    const collected = diffResultCollected(result);
+
     packages.push({
       package: entry.package,
-      status:
-        result.exitCode === 0 || result.exitCode === 1
-          ? 'collected'
-          : 'degraded',
+      status: collected ? 'collected' : 'degraded',
       currentPath: entry.current.path,
       targetPath: entry.target.path,
-      summaryText:
-        result.stdout.length > 0
-          ? result.stdout
-          : result.stderr.length > 0
-            ? result.stderr
-            : undefined,
-      error:
-        result.exitCode === 0 || result.exitCode === 1
-          ? undefined
-          : result.stderr || 'git diff --no-index failed',
+      summaryText: result.stdout.length > 0 ? result.stdout : undefined,
+      error: collected
+        ? undefined
+        : result.stderr || 'git diff --no-index failed',
     });
   }
 
