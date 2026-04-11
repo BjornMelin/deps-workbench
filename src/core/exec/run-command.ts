@@ -72,8 +72,8 @@ export async function runCommand(
     command,
     cwd,
     exitCode,
-    stdout: stdout.trim(),
-    stderr: stderr.trim(),
+    stdout: stdout.trimEnd(),
+    stderr: stderr.trimEnd(),
     timedOut,
   };
 }

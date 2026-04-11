@@ -5,7 +5,7 @@ import type {
   SourcePathsArtifact,
 } from '../../schemas';
 import { diffArtifactSchema } from '../../schemas';
-import { runCommand } from '../exec/run-command';
+import { type CommandResult, runCommand } from '../exec/run-command';
 
 const GIT_DIFF_TIMEOUT_MS = 60_000;
 
@@ -20,6 +20,9 @@ function diffProvenance(notes: string[] = []): ArtifactProvenance {
 
 /**
  * Runs `git diff --no-index --stat` between resolved current and target source paths when both differ.
+ *
+ * @param input - Repository root, generation timestamp, and collected source path pairs.
+ * @returns Diff artifact describing per-package source tree differences or degraded/skipped states.
  */
 export async function collectDiffArtifact(input: {
   repoRoot: string;
@@ -64,10 +67,24 @@ export async function collectDiffArtifact(input: {
       entry.target.path,
     ];
     provenance.commands.push(command.join(' '));
-    const result = await runCommand(command, {
-      cwd: input.repoRoot,
-      timeoutMs: GIT_DIFF_TIMEOUT_MS,
-    });
+    let result: CommandResult;
+
+    try {
+      result = await runCommand(command, {
+        cwd: input.repoRoot,
+        timeoutMs: GIT_DIFF_TIMEOUT_MS,
+      });
+    } catch (error) {
+      packages.push({
+        package: entry.package,
+        status: 'degraded',
+        currentPath: entry.current.path,
+        targetPath: entry.target.path,
+        error:
+          error instanceof Error ? error.message : 'git diff --no-index failed',
+      });
+      continue;
+    }
 
     packages.push({
       package: entry.package,

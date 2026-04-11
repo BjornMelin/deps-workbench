@@ -55,6 +55,7 @@ export async function withArtifactCache<T>(input: {
   }
 
   const value = await input.producer();
+  input.schema.parse(value);
   await writeJsonFile(cacheFilePath, value);
 
   return {

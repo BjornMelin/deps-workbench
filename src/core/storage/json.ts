@@ -7,6 +7,9 @@ import type { ZodType } from 'zod';
 /**
  * Reads a UTF-8 JSON file and validates with the given Zod schema.
  *
+ * @param filePath - Absolute or repo-relative path to the JSON file.
+ * @param schema - Zod schema used to validate the parsed value.
+ * @returns Parsed JSON value after schema validation.
  * @throws If the file is not valid JSON or validation fails.
  */
 export async function readJsonFile<T>(
@@ -22,6 +25,9 @@ export async function readJsonFile<T>(
 /**
  * Reads JSON with comments (JSONC), rejects on parse diagnostics, then validates with Zod.
  *
+ * @param filePath - Absolute or repo-relative path to the JSONC file.
+ * @param schema - Zod schema used to validate the parsed value.
+ * @returns Parsed JSONC value after syntax and schema validation.
  * @throws `SyntaxError` when JSONC parsing fails; Zod errors when validation fails.
  */
 export async function readJsoncFile<T>(
@@ -55,6 +61,9 @@ export async function readJsoncFile<T>(
 /**
  * Writes pretty-printed JSON (two-space indent, trailing newline). Creates parent directories.
  *
+ * @param filePath - Output path for the JSON file.
+ * @param value - Serializable value to persist.
+ * @returns Resolves when the file and parent directories have been written.
  * @throws `TypeError` when `value` is not JSON-serializable.
  */
 export async function writeJsonFile(

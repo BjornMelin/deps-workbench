@@ -27,6 +27,7 @@ import { collectDocsArtifact } from '../collectors/ctx7';
 import { collectDiffArtifact } from '../collectors/diff';
 import { collectReleasesArtifact } from '../collectors/github';
 import { collectSourcePathsArtifact } from '../collectors/opensrc';
+import { stripVersionFromPackageSpec } from '../packages/package-spec';
 import { loadCheckedInPolicy } from '../policy/load-policy';
 import { probeExternalTools } from '../preflight/tools';
 import { writeJsonFile } from '../storage/json';
@@ -326,12 +327,26 @@ export async function createPrepBundle(
   const repoRoot = resolveRepoRoot(options.repoRoot ?? process.cwd());
   await ensureLocalStateDirectories(repoRoot);
   const policy = await loadCheckedInPolicy(repoRoot);
+  const mode = options.mode ?? policy.modes.default;
+
+  if (options.packages.length === 0) {
+    throw new Error('prepare requires at least one package');
+  }
+
+  if (!policy.modes.allowed.includes(mode)) {
+    throw new Error(`Unsupported prepare mode: ${mode}`);
+  }
 
   const request: PrepRequest = {
-    packages: Array.from(new Set(options.packages)),
+    packages: Array.from(
+      new Set(
+        options.packages.map((packageSpec) =>
+          stripVersionFromPackageSpec(packageSpec),
+        ),
+      ),
+    ),
     targetVersion: options.targetVersion,
   };
-  const mode = options.mode ?? policy.modes.default;
   const runId = options.runId ?? (dependencies.createRunId ?? defaultRunId)();
   const artifactRoot = resolvePrepArtifactRoot(repoRoot, runId);
   await mkdir(artifactRoot, { recursive: true });

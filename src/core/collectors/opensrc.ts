@@ -13,6 +13,9 @@ const OPENSRC_TIMEOUT_MS = 30_000;
 
 /**
  * Extracts `owner/repo` from an opensrc cache path containing `/repos/github.com/...`.
+ *
+ * @param sourcePath - Resolved opensrc cache path.
+ * @returns Repository slug when the path contains a GitHub repo segment; otherwise `undefined`.
  */
 export function parseRepositoryFromSourcePath(
   sourcePath: string,
@@ -27,7 +30,12 @@ export function parseRepositoryFromSourcePath(
   return `${match[1]}/${match[2]}`;
 }
 
-/** Returns the last path segment, treated as the resolved version directory name. */
+/**
+ * Returns the last path segment, treated as the resolved version directory name.
+ *
+ * @param sourcePath - Resolved opensrc cache path.
+ * @returns Final path segment representing the resolved version directory, if present.
+ */
 export function parseVersionFromSourcePath(
   sourcePath: string,
 ): string | undefined {
@@ -59,6 +67,9 @@ async function resolveOpensrcPath(command: string[], repoRoot: string) {
 
 /**
  * Resolves current (and optional target) source tree paths via `opensrc path` for each requested package.
+ *
+ * @param input - Repository root, requested package specs, generation timestamp, and preflight summary.
+ * @returns Source-path artifact with current and optional target snapshots for each requested package.
  */
 export async function collectSourcePathsArtifact(input: {
   repoRoot: string;
@@ -100,7 +111,13 @@ export async function collectSourcePathsArtifact(input: {
     let targetResult: CommandResult | undefined;
     if (input.request.targetVersion !== undefined) {
       const targetSpec = `${stripVersionFromPackageSpec(packageSpec)}@${input.request.targetVersion}`;
-      const targetCommand = ['opensrc', 'path', targetSpec];
+      const targetCommand = [
+        'opensrc',
+        'path',
+        targetSpec,
+        '--cwd',
+        input.repoRoot,
+      ];
       targetResult = await resolveOpensrcPath(targetCommand, input.repoRoot);
       provenance.commands.push(targetCommand.join(' '));
     }

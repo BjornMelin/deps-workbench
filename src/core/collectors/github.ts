@@ -26,26 +26,32 @@ function isGhAvailable(preflight: PreflightSummary): boolean {
 }
 
 /**
- * Parses tab-separated lines from `gh release list` into structured release rows.
+ * Parses JSON rows from `gh release list --json ...` into structured release items.
+ *
+ * @param rawText - JSON output from `gh release list --json name,tagName,publishedAt,isLatest`.
+ * @returns Structured release rows normalized to the releases artifact shape.
  */
 export function parseGhReleaseList(rawText: string) {
-  return rawText
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line, index) => {
-      const [name, latestMarker, tagName, publishedAt] = line.split('\t');
-      return {
-        name: name || undefined,
-        tagName: tagName || name || `release_${index}`,
-        publishedAt: publishedAt || undefined,
-        isLatest: latestMarker === 'Latest',
-      };
-    });
+  const releases = JSON.parse(rawText) as Array<{
+    isLatest?: boolean;
+    name?: string | null;
+    publishedAt?: string | null;
+    tagName?: string | null;
+  }>;
+
+  return releases.map((release, index) => ({
+    name: release.name ?? undefined,
+    tagName: release.tagName ?? release.name ?? `release_${index}`,
+    publishedAt: release.publishedAt ?? undefined,
+    isLatest: Boolean(release.isLatest),
+  }));
 }
 
 /**
  * Fetches recent releases per package using `gh release list` when `gh` is available and `owner/repo` is known.
+ *
+ * @param input - Repository root, generation timestamp, preflight summary, and resolved package repositories.
+ * @returns Releases artifact with the latest release metadata or degraded package entries.
  */
 export async function collectReleasesArtifact(input: {
   repoRoot: string;
@@ -90,6 +96,8 @@ export async function collectReleasesArtifact(input: {
       'list',
       '--repo',
       entry.repository,
+      '--json',
+      'name,tagName,publishedAt,isLatest',
       '--limit',
       '10',
     ];
@@ -103,7 +111,10 @@ export async function collectReleasesArtifact(input: {
       package: entry.package,
       repository: entry.repository,
       status: result.exitCode === 0 ? 'collected' : 'degraded',
-      releases: result.exitCode === 0 ? parseGhReleaseList(result.stdout) : [],
+      releases:
+        result.exitCode === 0 && result.stdout.length > 0
+          ? parseGhReleaseList(result.stdout)
+          : [],
       rawText: result.stdout.length > 0 ? result.stdout : undefined,
       error:
         result.exitCode === 0

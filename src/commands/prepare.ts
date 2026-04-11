@@ -11,6 +11,8 @@ export type PrepareCommandOptions = PrepareBundleOptions & {
 
 /**
  * Help text for `deps-workbench prepare` (flags and behavior summary).
+ *
+ * @returns Operator-facing help text for the `prepare` command.
  */
 export function getPrepareHelp(): string {
   return [
@@ -47,6 +49,7 @@ function renderPrepareSummary(result: PrepareBundleResult): string {
  * Builds a prep bundle under `.local/runs/<runId>/prep` and prints a summary or JSON manifest.
  *
  * @param options - Repository root, packages, mode, and optional `--json` output.
+ * @returns Exit code and stdout payload for CLI rendering.
  */
 export async function runPrepareCommand(
   options: PrepareCommandOptions,

@@ -12,6 +12,9 @@ export type LocalStatePaths = {
 
 /**
  * Resolves `repoRoot` to an absolute path (defaults to current working directory).
+ *
+ * @param repoRoot - Repository root or current working directory when omitted.
+ * @returns Absolute repository root path.
  */
 export function resolveRepoRoot(repoRoot = process.cwd()): string {
   return path.resolve(repoRoot);
@@ -19,6 +22,9 @@ export function resolveRepoRoot(repoRoot = process.cwd()): string {
 
 /**
  * Computes `.local/`, `runs/`, `cache/`, and `config/` paths under the repository.
+ *
+ * @param repoRoot - Repository root or current working directory when omitted.
+ * @returns Resolved absolute paths for the `.local/` subtree.
  */
 export function resolveLocalStatePaths(
   repoRoot = process.cwd(),
@@ -38,6 +44,9 @@ export function resolveLocalStatePaths(
 /**
  * Returns an absolute path for `candidatePath` relative to `baseDir`, or throws if it escapes `baseDir`.
  *
+ * @param baseDir - Base directory that bounds the allowed path.
+ * @param candidatePath - Relative or absolute candidate path to validate.
+ * @returns Absolute path guaranteed to remain inside `baseDir`.
  * @throws When the resolved path is outside `baseDir` (directory traversal).
  */
 export function assertPathWithinBase(
@@ -61,7 +70,13 @@ export function assertPathWithinBase(
   return resolvedCandidatePath;
 }
 
-/** Same as {@link assertPathWithinBase} with `baseDir` set to the repository root. */
+/**
+ * Same as {@link assertPathWithinBase} with `baseDir` set to the repository root.
+ *
+ * @param repoRoot - Repository root used as the safety boundary.
+ * @param candidatePath - Relative or absolute candidate path to validate.
+ * @returns Absolute path guaranteed to remain inside `repoRoot`.
+ */
 export function assertPathWithinRepoRoot(
   repoRoot: string,
   candidatePath: string,
@@ -71,6 +86,10 @@ export function assertPathWithinRepoRoot(
 
 /**
  * Directory for a single run under `.local/runs/<runId>/`.
+ *
+ * @param repoRoot - Repository root that owns the `.local/runs` subtree.
+ * @param runId - Run identifier for one prep/analyze/report cycle.
+ * @returns Absolute run directory path.
  */
 export function resolveRunDirectory(repoRoot: string, runId: string): string {
   const { runsRoot } = resolveLocalStatePaths(repoRoot);
@@ -80,6 +99,10 @@ export function resolveRunDirectory(repoRoot: string, runId: string): string {
 
 /**
  * Prep artifact root: `.local/runs/<runId>/prep/`.
+ *
+ * @param repoRoot - Repository root that owns the `.local/runs` subtree.
+ * @param runId - Run identifier for one prep cycle.
+ * @returns Absolute prep artifact directory path.
  */
 export function resolvePrepArtifactRoot(
   repoRoot: string,
@@ -90,6 +113,11 @@ export function resolvePrepArtifactRoot(
 
 /**
  * Cache path for an artifact family and stable hash key under `.local/cache/`.
+ *
+ * @param repoRoot - Repository root that owns the `.local/cache` subtree.
+ * @param family - Artifact family name.
+ * @param cacheKey - Stable cache key derived from cache inputs.
+ * @returns Absolute cache directory for the requested family/key pair.
  */
 export function resolveCacheDirectory(
   repoRoot: string,
@@ -103,6 +131,9 @@ export function resolveCacheDirectory(
 
 /**
  * Ensures `.local/` subtree directories exist and returns their resolved paths.
+ *
+ * @param repoRoot - Repository root or current working directory when omitted.
+ * @returns Resolved `.local/` subtree paths after directory creation.
  */
 export async function ensureLocalStateDirectories(
   repoRoot = process.cwd(),

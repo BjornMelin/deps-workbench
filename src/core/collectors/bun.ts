@@ -26,8 +26,25 @@ function isBunAvailable(preflight: PreflightSummary): boolean {
   );
 }
 
+function parseBunAuditJson(rawText: string): unknown {
+  const jsonStart = rawText.indexOf('{');
+
+  if (jsonStart === -1) {
+    return { rawText };
+  }
+
+  try {
+    return JSON.parse(rawText.slice(jsonStart)) as unknown;
+  } catch {
+    return { rawText };
+  }
+}
+
 /**
  * Collects `bun audit --json` once and per-package `bun why` traces into the `usage` artifact family.
+ *
+ * @param input - Repository root, generation timestamp, preflight result, and requested package metadata.
+ * @returns Usage artifact containing per-package `bun why` traces plus shared audit metadata when available.
  */
 export async function collectUsageArtifact(input: {
   repoRoot: string;
@@ -59,15 +76,20 @@ export async function collectUsageArtifact(input: {
     timeoutMs: BUN_TIMEOUT_MS,
   });
 
-  let auditJson: unknown;
-  if (auditResult.stdout.length > 0) {
-    try {
-      auditJson = JSON.parse(
-        auditResult.stdout.replace(/^.*\{/, '{'),
-      ) as unknown;
-    } catch {
-      auditJson = { rawText: auditResult.stdout };
-    }
+  const auditSucceeded = !auditResult.timedOut && auditResult.exitCode === 0;
+  const auditJson =
+    auditSucceeded && auditResult.stdout.length > 0
+      ? parseBunAuditJson(auditResult.stdout)
+      : undefined;
+  const auditError =
+    auditSucceeded || auditResult.stdout.length > 0
+      ? undefined
+      : auditResult.stderr ||
+        (auditResult.timedOut ? 'bun audit timed out' : 'bun audit failed');
+
+  if (auditSucceeded && auditResult.stdout.length === 0) {
+    // Preserve the fact that the command succeeded but returned no JSON payload.
+    provenance.notes.push('bun audit returned no JSON payload');
   }
 
   const packages: UsagePackageEntry[] = [];
@@ -80,16 +102,21 @@ export async function collectUsageArtifact(input: {
       timeoutMs: BUN_TIMEOUT_MS,
     });
 
+    const whySucceeded = !whyResult.timedOut && whyResult.exitCode === 0;
+
     packages.push({
       package: stripVersionFromPackageSpec(entry.package),
-      status: whyResult.exitCode === 0 ? 'collected' : 'degraded',
+      status: whySucceeded && auditSucceeded ? 'collected' : 'degraded',
       whyText: whyResult.stdout.length > 0 ? whyResult.stdout : undefined,
       auditJson,
       declaredVersions: entry.declaredVersions,
       error:
-        whyResult.exitCode === 0
-          ? undefined
-          : whyResult.stderr || 'bun why failed',
+        [
+          auditError,
+          whySucceeded ? undefined : whyResult.stderr || 'bun why failed',
+        ]
+          .filter((value): value is string => value !== undefined)
+          .join('; ') || undefined,
     });
   }
 
