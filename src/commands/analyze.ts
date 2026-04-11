@@ -35,7 +35,7 @@ function renderAnalyzeSummary(
     `mode: ${result.manifest.mode}`,
     `outcomeClass: ${result.manifest.outcomeClass}`,
     `primaryAction: ${result.manifest.primaryAction}`,
-    `modelUsed: ${result.manifest.modelUsed}`,
+    `modelUsed: ${result.manifest.modelUsed ?? 'not executed'}`,
     `resultRoot: ${result.resultRoot}`,
   ].join('\n');
 }

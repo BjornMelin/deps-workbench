@@ -152,6 +152,8 @@ function mapReasoningEffort(
  *
  * @param input - Prepared bundle, routing decision, and structural assessment.
  * @returns Structured synthesis and the model identifier that produced it.
+ * @throws {Error} When OPENAI_API_KEY is missing and synthesis cannot start.
+ * @throws {Error} When the Agents SDK rejects structured output or returns no final structured output.
  */
 export const runOpenAIAnalysis: AnalysisModelExecutor = async (input) => {
   if (!process.env.OPENAI_API_KEY) {
@@ -172,11 +174,30 @@ export const runOpenAIAnalysis: AnalysisModelExecutor = async (input) => {
     },
   });
 
-  const result = await run(agent, buildPrompt(input));
+  const result = await (async () => {
+    try {
+      return await run(agent, buildPrompt(input));
+    } catch (error) {
+      if (isModelBehaviorError(error)) {
+        throw new Error(
+          [
+            'OpenAI analyze failed structured-output parsing',
+            `model=${input.routingDecision.selectedModel}`,
+            formatModelBehaviorError(error),
+          ].join(' | '),
+          { cause: error },
+        );
+      }
+
+      throw error;
+    }
+  })();
   const synthesis = result.finalOutput;
 
   if (synthesis === undefined) {
-    throw new Error('OpenAI analyze returned no final structured output');
+    throw new Error(
+      `OpenAI analyze returned no final structured output for model ${input.routingDecision.selectedModel}`,
+    );
   }
 
   return {
@@ -184,3 +205,27 @@ export const runOpenAIAnalysis: AnalysisModelExecutor = async (input) => {
     modelUsed: input.routingDecision.selectedModel,
   };
 };
+
+type ModelBehaviorErrorLike = Error & {
+  details?: unknown;
+};
+
+function isModelBehaviorError(error: unknown): error is ModelBehaviorErrorLike {
+  return error instanceof Error && error.name === 'ModelBehaviorError';
+}
+
+function formatModelBehaviorError(error: ModelBehaviorErrorLike): string {
+  if (error.details === undefined) {
+    return error.message;
+  }
+
+  if (typeof error.details === 'string') {
+    return `${error.message} | details=${error.details}`;
+  }
+
+  try {
+    return `${error.message} | details=${JSON.stringify(error.details)}`;
+  } catch {
+    return `${error.message} | details=[unserializable]`;
+  }
+}

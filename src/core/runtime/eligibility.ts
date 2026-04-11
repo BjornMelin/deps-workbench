@@ -68,6 +68,26 @@ function buildFallbackClaim(
   };
 }
 
+function buildBundleFallbackClaim(detail: string): ResultClaim {
+  return {
+    id: `bundle_degradation_${detail
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '')}`,
+    statement: detail,
+    confidence: 0.35,
+    bucket: 'UNVERIFIED',
+    rationale:
+      'Derived from bundle-level structural eligibility checks before synthesis.',
+    evidenceRefs: [
+      {
+        artifactFamily: 'meta',
+        locator: 'meta:bundle',
+      },
+    ],
+  };
+}
+
 /**
  * Evaluates structural eligibility for synthesis based on prep bundle completeness.
  *
@@ -88,7 +108,6 @@ export function evaluateStructuralEligibility(
           ', ',
         )}`
       : null;
-  const bundleDegradationPackage = prepBundle.meta.packages[0]?.package;
 
   for (const packageEntry of prepBundle.meta.packages) {
     const packageName = packageEntry.package;
@@ -136,13 +155,6 @@ export function evaluateStructuralEligibility(
       degradations.push('target version is unspecified');
     }
 
-    if (
-      bundleDegradationMessage !== null &&
-      packageName === bundleDegradationPackage
-    ) {
-      degradations.push(bundleDegradationMessage);
-    }
-
     findings.push({
       package: packageName,
       blockers,
@@ -160,8 +172,14 @@ export function evaluateStructuralEligibility(
     }
   }
 
+  if (bundleDegradationMessage !== null) {
+    fallbackClaims.push(buildBundleFallbackClaim(bundleDegradationMessage));
+  }
+
   const blocked = findings.some((finding) => finding.blockers.length > 0);
-  const degraded = findings.some((finding) => finding.degradations.length > 0);
+  const degraded =
+    bundleDegradationMessage !== null ||
+    findings.some((finding) => finding.degradations.length > 0);
   const topRiskSignals = Array.from(
     new Set(
       prepBundle.signals.packages.flatMap((entry) =>

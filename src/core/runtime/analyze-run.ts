@@ -180,7 +180,6 @@ export async function analyzePreparedRun(
       primaryAction: 'stop_blocked',
       routingDecision,
       recovery,
-      modelUsed: routingDecision.selectedModel,
       generatedAt: now().toISOString(),
       structuralAssessment,
     });

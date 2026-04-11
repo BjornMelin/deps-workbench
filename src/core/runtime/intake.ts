@@ -21,7 +21,6 @@ import {
 import { readJsonFile } from '../storage/json';
 import {
   assertPathWithinBase,
-  resolvePrepArtifactRoot,
   resolveRepoRoot,
   resolveRunDirectory,
 } from '../storage/paths';
@@ -52,12 +51,10 @@ export async function loadPrepBundleFromRunId(
   runId: string,
 ): Promise<LoadedPrepBundle> {
   const resolvedRepoRoot = resolveRepoRoot(repoRoot);
-  const manifestPath = path.join(
-    resolvePrepArtifactRoot(resolvedRepoRoot, runId),
-    'manifest.json',
-  );
+  const runDirectory = resolveRunDirectory(resolvedRepoRoot, runId);
+  const manifestPath = path.join(runDirectory, 'prep', 'manifest.json');
 
-  return loadPrepBundleFromManifest(manifestPath);
+  return loadPrepBundleFromManifest(manifestPath, runDirectory);
 }
 
 async function readPrepArtifact<T>(
@@ -76,52 +73,71 @@ async function readPrepArtifact<T>(
  */
 export async function loadPrepBundleFromManifest(
   manifestPath: string,
+  runDirectory: string,
 ): Promise<LoadedPrepBundle> {
   const manifest = await readJsonFile(manifestPath, prepManifestSchema);
-  const runDirectory = resolveRunDirectory(manifest.repoRoot, manifest.runId);
+  const resolvedManifestPath = path.resolve(manifestPath);
+  const expectedManifestPath = path.join(runDirectory, 'prep', 'manifest.json');
+
+  if (resolvedManifestPath !== path.resolve(expectedManifestPath)) {
+    throw new Error(
+      `prep manifest path mismatch: expected ${expectedManifestPath}, got ${resolvedManifestPath}`,
+    );
+  }
+
   const artifactRoot = assertPathWithinBase(
     runDirectory,
     manifest.artifactRoot,
   );
+  const [meta, docs, releases, sourcePaths, diff, usage, signals] =
+    await Promise.all([
+      readPrepArtifact(
+        artifactRoot,
+        manifest.artifactFiles.meta,
+        metaArtifactSchema,
+      ),
+      readPrepArtifact(
+        artifactRoot,
+        manifest.artifactFiles.docs,
+        docsArtifactSchema,
+      ),
+      readPrepArtifact(
+        artifactRoot,
+        manifest.artifactFiles.releases,
+        releasesArtifactSchema,
+      ),
+      readPrepArtifact(
+        artifactRoot,
+        manifest.artifactFiles.sourcePaths,
+        sourcePathsArtifactSchema,
+      ),
+      readPrepArtifact(
+        artifactRoot,
+        manifest.artifactFiles.diff,
+        diffArtifactSchema,
+      ),
+      readPrepArtifact(
+        artifactRoot,
+        manifest.artifactFiles.usage,
+        usageArtifactSchema,
+      ),
+      readPrepArtifact(
+        artifactRoot,
+        manifest.artifactFiles.signals,
+        signalsArtifactSchema,
+      ),
+    ]);
 
   return {
     runDirectory,
-    manifestPath,
+    manifestPath: resolvedManifestPath,
     manifest,
-    meta: await readPrepArtifact(
-      artifactRoot,
-      manifest.artifactFiles.meta,
-      metaArtifactSchema,
-    ),
-    docs: await readPrepArtifact(
-      artifactRoot,
-      manifest.artifactFiles.docs,
-      docsArtifactSchema,
-    ),
-    releases: await readPrepArtifact(
-      artifactRoot,
-      manifest.artifactFiles.releases,
-      releasesArtifactSchema,
-    ),
-    sourcePaths: await readPrepArtifact(
-      artifactRoot,
-      manifest.artifactFiles.sourcePaths,
-      sourcePathsArtifactSchema,
-    ),
-    diff: await readPrepArtifact(
-      artifactRoot,
-      manifest.artifactFiles.diff,
-      diffArtifactSchema,
-    ),
-    usage: await readPrepArtifact(
-      artifactRoot,
-      manifest.artifactFiles.usage,
-      usageArtifactSchema,
-    ),
-    signals: await readPrepArtifact(
-      artifactRoot,
-      manifest.artifactFiles.signals,
-      signalsArtifactSchema,
-    ),
+    meta,
+    docs,
+    releases,
+    sourcePaths,
+    diff,
+    usage,
+    signals,
   };
 }

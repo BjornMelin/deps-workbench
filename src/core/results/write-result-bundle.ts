@@ -26,7 +26,7 @@ export type ResultBundleWriteInput = {
   primaryAction: ResultManifest['primaryAction'];
   routingDecision: RoutingDecision;
   recovery: RecoveryRecord[];
-  modelUsed: string;
+  modelUsed?: string;
   generatedAt: string;
   structuralAssessment: StructuralAssessment;
 };
@@ -56,8 +56,9 @@ function renderExecutiveBrief(input: {
   primaryAction: ResultManifest['primaryAction'];
   routingDecision: RoutingDecision;
   recovery: RecoveryRecord[];
-  modelUsed: string;
+  modelUsed?: string;
 }): string {
+  const modelUsed = input.modelUsed ?? 'not executed';
   const lines = [
     `# Executive Brief`,
     '',
@@ -66,7 +67,7 @@ function renderExecutiveBrief(input: {
     `- Outcome: \`${input.outcomeClass}\``,
     `- Primary action: \`${input.primaryAction}\``,
     `- Model tier: \`${input.routingDecision.selectedTier}\``,
-    `- Model used: \`${input.modelUsed}\``,
+    `- Model used: \`${modelUsed}\``,
   ];
 
   if (input.recovery.length > 0) {

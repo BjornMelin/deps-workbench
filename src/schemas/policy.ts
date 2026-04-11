@@ -50,6 +50,30 @@ export const policySchema = z
       })
       .strict()
       .superRefine((value, ctx) => {
+        if (
+          value.thresholds.triageNanoMax >=
+          value.thresholds.recoveryEscalationMin
+        ) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['thresholds', 'triageNanoMax'],
+            message:
+              'modelRouting.thresholds.triageNanoMax must be less than modelRouting.thresholds.recoveryEscalationMin',
+          });
+        }
+
+        if (
+          value.thresholds.recoveryEscalationMin >=
+          value.thresholds.fullEscalationMin
+        ) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['thresholds', 'recoveryEscalationMin'],
+            message:
+              'modelRouting.thresholds.recoveryEscalationMin must be less than modelRouting.thresholds.fullEscalationMin',
+          });
+        }
+
         const totalWeight = Object.values(value.weights).reduce(
           (sum, weight) => sum + weight,
           0,

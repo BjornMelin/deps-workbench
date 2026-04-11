@@ -21,6 +21,16 @@ import {
 } from './enums';
 
 export const confidenceSchema = z.number().min(0).max(1);
+export const semanticOutcomeSchema = outcomeClassSchema;
+export const routingCategorySchema = z.enum([
+  'upgradeSeverity',
+  'evidenceConflict',
+  'repoBlastRadius',
+  'apiSurfaceMovement',
+  'replacementOpportunity',
+  'uncertainty',
+  'coupling',
+]);
 
 export const evidenceReferenceSchema = z
   .object({
@@ -91,12 +101,7 @@ export const decisionReportSchema = z
   .object({
     schemaVersion: z.literal('1'),
     generatedAt: isoTimestampSchema,
-    semanticOutcome: z.enum([
-      'ready_to_implement',
-      'review_required',
-      'blocked',
-      'degraded_reference_only',
-    ]),
+    semanticOutcome: semanticOutcomeSchema,
     summary: nonEmptyStringSchema,
     topRiskSignals: stringListSchema.default([]),
     claims: z.array(resultClaimSchema).min(1),
@@ -150,12 +155,7 @@ export const openQuestionsSchema = z
 export const analysisSynthesisSchema = z
   .object({
     executiveBrief: nonEmptyStringSchema,
-    semanticOutcome: z.enum([
-      'ready_to_implement',
-      'review_required',
-      'blocked',
-      'degraded_reference_only',
-    ]),
+    semanticOutcome: semanticOutcomeSchema,
     summary: nonEmptyStringSchema,
     topRiskSignals: stringListSchema.default([]),
     claims: z.array(resultClaimSchema).min(1),
@@ -170,15 +170,7 @@ export const analysisSynthesisSchema = z
 
 export const routingScoreFactorSchema = z
   .object({
-    category: z.enum([
-      'upgradeSeverity',
-      'evidenceConflict',
-      'repoBlastRadius',
-      'apiSurfaceMovement',
-      'replacementOpportunity',
-      'uncertainty',
-      'coupling',
-    ]),
+    category: routingCategorySchema,
     rawScore: z.number().min(0).max(100),
     weightedContribution: z.number().min(0).max(100),
     rationale: nonEmptyStringSchema,
@@ -241,7 +233,7 @@ export const resultManifestSchema = z
     createdAt: isoTimestampSchema,
     outcomeClass: outcomeClassSchema,
     primaryAction: primaryActionSchema,
-    modelUsed: nonEmptyStringSchema,
+    modelUsed: nonEmptyStringSchema.optional(),
     routingDecision: routingDecisionSchema,
     recovery: z.array(recoveryRecordSchema).default([]),
     topRiskSignals: stringListSchema.default([]),

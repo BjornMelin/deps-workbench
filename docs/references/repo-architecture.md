@@ -110,6 +110,8 @@ Major-version routing treats semver ranges/prefixes conservatively and counts
 The OpenAI analysis lane should request schema-typed output from the Agents SDK
 so synthesis results arrive as contract-validated structured data instead of
 free-form JSON text that must be reparsed manually.
+If the SDK cannot produce a final structured output, treat that as a blocked
+analysis path and stop before writing a misleading synthesis result.
 
 ## Recovery model
 

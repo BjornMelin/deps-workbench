@@ -538,6 +538,7 @@ describe('analyzePreparedRun', () => {
       expect(modelCalls).toBe(0);
       expect(result.manifest.outcomeClass).toBe('blocked');
       expect(result.manifest.primaryAction).toBe('stop_blocked');
+      expect(result.manifest.modelUsed).toBeUndefined();
       expect(
         decisionReportSchema.parse(
           JSON.parse(
@@ -931,9 +932,13 @@ describe('analyzePreparedRun', () => {
       const openQuestionsPath = result.manifest.resultFiles.openQuestions;
 
       expect(openQuestionsPath).toBeDefined();
+      if (openQuestionsPath === undefined) {
+        throw new Error('openQuestionsPath should be defined');
+      }
+      const openQuestionsFile = openQuestionsPath;
       expect(
         openQuestionsSchema.parse(
-          JSON.parse(await Bun.file(openQuestionsPath ?? '').text()) as unknown,
+          JSON.parse(await Bun.file(openQuestionsFile).text()) as unknown,
         ).questions,
       ).toHaveLength(1);
 
@@ -949,7 +954,7 @@ describe('analyzePreparedRun', () => {
       );
 
       expect(rerunResult.manifest.resultFiles.openQuestions).toBeUndefined();
-      expect(await Bun.file(openQuestionsPath ?? '').exists()).toBe(false);
+      expect(await Bun.file(openQuestionsFile).exists()).toBe(false);
     } finally {
       await rm(tempRepo, { recursive: true, force: true });
     }
