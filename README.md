@@ -29,7 +29,7 @@ that yields typed artifacts, typed results, and action-oriented manifests.
 - [done] Phase 01 bootstrap foundation is verified complete
 - [done] Phase 02 typed contracts, storage, and policy loading
 - [todo] Phase 03 deterministic prep collectors and prep bundles
-- [todo] Phase 04 OpenAI analysis runtime and result bundles
+- [todo] Phase 04 analysis runtime and model routing
 - [todo] Phase 05 reporting, run, and resume operator flows
 - [todo] Phase 06 bundled-skills ownership, release automation, migration, and
   release readiness

@@ -170,7 +170,7 @@ This phase is complete only if:
 - routing and recovery are explicit and bounded
 - the result bundle is implementation-driving and schema-valid
 - outcome class and primary action are present in the result manifest
-- the phase and master ledger are updated together
+- the phase-local status and README master ledger are updated together
 
 ## Stop rules
 
