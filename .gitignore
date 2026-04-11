@@ -28,3 +28,9 @@ report.*.*.*.*.json
 # editors / OS
 .idea/
 .DS_Store
+
+# Developer tools
+.codex/
+.agents/
+.cursor/
+skills-lock.json

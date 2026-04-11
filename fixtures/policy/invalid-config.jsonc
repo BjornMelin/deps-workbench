@@ -1,0 +1,19 @@
+{
+  // invalid on purpose: default is not in allowed and maxAutomaticHops is too large
+  "modes": {
+    "default": "implementation",
+    "allowed": ["triage", "research"]
+  },
+  "modelRouting": {
+    "tiers": {
+      "nano": "gpt-5.4-nano",
+      "mini": "gpt-5.4-mini",
+      "full": "gpt-5.4"
+    }
+  },
+  "recovery": {
+    "maxAutomaticHops": 2,
+    "allowedActions": ["refresh_docs"]
+  },
+  "frameworkEnrichments": ["react"]
+}

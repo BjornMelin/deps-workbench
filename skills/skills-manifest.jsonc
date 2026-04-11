@@ -1,0 +1,27 @@
+{
+  // Separate release identity for the bundled-skills lane.
+  "skillsVersion": "0.0.0-dev",
+  "distribution": {
+    "primary": "github",
+    "shipWithNpmPackage": false
+  },
+  "install": {
+    "primaryCommand": "bunx skills",
+    "compatibilityCommand": "npx skills",
+    "defaultMode": "dry-run"
+  },
+  "trackedSkills": [
+    {
+      "name": "deps-workbench",
+      "status": "planned"
+    },
+    {
+      "name": "opensrc-inspect",
+      "status": "planned-import"
+    },
+    {
+      "name": "repo-modernize-upgrade-audit",
+      "status": "planned-import"
+    }
+  ]
+}

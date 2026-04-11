@@ -6,6 +6,8 @@
 - CLI-first core
 - OpenAI-first analysis runtime in later phases
 - No Turborepo, monorepo split, or Vercel template in v1
+- Bundled skills live alongside the repo, but do not belong to the runtime CLI
+  command surface
 
 ## Canonical command surface
 
@@ -24,6 +26,7 @@
 - `test/` - fixture-backed Bun tests
 - `fixtures/` - stable test fixtures
 - `config/` - checked-in policy defaults
+- `skills/` - bundled-skills source-of-truth lane
 
 ## Local runtime state
 
@@ -34,6 +37,9 @@
 ## Current developer commands
 
 ```bash
+bun run biome:check
+bun run biome:write
+bun run biome:ci
 bun run dev
 bun run test
 bun run typecheck
