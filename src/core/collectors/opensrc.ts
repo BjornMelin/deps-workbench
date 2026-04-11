@@ -86,7 +86,7 @@ export async function collectSourcePathsArtifact(input: {
       family: 'source_paths',
       generatedAt: input.generatedAt,
       packages: input.request.packages.map((packageName) => ({
-        package: packageName,
+        package: stripVersionFromPackageSpec(packageName),
         status: 'degraded',
         error: 'opensrc unavailable during preflight',
       })),

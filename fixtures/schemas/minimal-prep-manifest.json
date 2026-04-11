@@ -9,7 +9,15 @@
     "packages": ["zod"],
     "targetVersion": "4.4.0"
   },
-  "artifactFamilies": ["meta", "docs", "usage"],
+  "artifactFamilies": [
+    "meta",
+    "docs",
+    "releases",
+    "source_paths",
+    "diff",
+    "usage",
+    "signals"
+  ],
   "degradedArtifactFamilies": [],
   "sourceFamilies": ["bun", "ctx7", "gh"],
   "cacheKeys": [

@@ -6,7 +6,11 @@ import type { ZodType } from 'zod';
 import { readJsonFile, writeJsonFile } from '../storage/json';
 import { resolveCacheDirectory } from '../storage/paths';
 
-/** Artifact value with stable cache key and whether it was read from disk or freshly produced. */
+/**
+ * Artifact value with stable cache key and whether it was read from disk or freshly produced.
+ *
+ * @typeParam T - Artifact payload type stored in or read from cache.
+ */
 export type CachedArtifactResult<T> = {
   value: T;
   cacheKey: string;

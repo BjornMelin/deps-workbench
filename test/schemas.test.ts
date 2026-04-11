@@ -71,6 +71,14 @@ describe('schema contracts', () => {
     expect(() =>
       prepManifestSchema.parse({
         ...fixture,
+        artifactFamilies: [
+          'meta',
+          'docs',
+          'releases',
+          'source_paths',
+          'diff',
+          'usage',
+        ],
         degradedArtifactFamilies: ['signals'],
       }),
     ).toThrow();

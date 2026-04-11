@@ -33,6 +33,9 @@ function parseJsonResult(rawText: string): unknown {
 
 /**
  * Resolves library ids and documentation snippets via `ctx7 library` / `ctx7 docs` per package.
+ *
+ * @param input - Repository root, generation timestamp, preflight summary, and requested packages.
+ * @returns Docs artifact containing per-package documentation lookups or degraded entries.
  */
 export async function collectDocsArtifact(input: {
   repoRoot: string;
