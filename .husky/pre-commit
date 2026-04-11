@@ -18,8 +18,8 @@ restore_unstaged_changes() {
   fi
 }
 
-if ! git diff --quiet --ignore-submodules --; then
-  git stash push --keep-index --quiet --message "$STASH_NAME" >/dev/null
+if ! git diff --quiet --ignore-submodules -- || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+  git stash push --keep-index --include-untracked --quiet --message "$STASH_NAME" >/dev/null
   STASHED=1
 fi
 

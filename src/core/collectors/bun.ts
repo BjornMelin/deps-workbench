@@ -102,38 +102,42 @@ export async function collectUsageArtifact(input: {
     : auditResult.stderr ||
       (auditResult.timedOut ? 'bun audit timed out' : 'bun audit failed');
 
-  if (auditSucceeded && auditResult.stdout.length === 0) {
-    // Preserve the fact that the command succeeded but returned no JSON payload.
-    provenance.notes.push('bun audit returned no JSON payload');
-  }
+  const whyResults = await Promise.all(
+    input.packages.map(async (entry) => {
+      const whyCommand = ['bun', 'why', entry.package, '--top', '--depth', '4'];
+      provenance.commands.push(whyCommand.join(' '));
+      const whyResult = await runCommand(whyCommand, {
+        cwd: input.repoRoot,
+        timeoutMs: BUN_TIMEOUT_MS,
+      });
 
-  const packages: UsagePackageEntry[] = [];
+      return { entry, whyResult };
+    }),
+  );
 
-  for (const entry of input.packages) {
-    const whyCommand = ['bun', 'why', entry.package, '--top', '--depth', '4'];
-    provenance.commands.push(whyCommand.join(' '));
-    const whyResult = await runCommand(whyCommand, {
-      cwd: input.repoRoot,
-      timeoutMs: BUN_TIMEOUT_MS,
-    });
+  const packages: UsagePackageEntry[] = whyResults.map(
+    ({ entry, whyResult }) => {
+      const whySucceeded = !whyResult.timedOut && whyResult.exitCode === 0;
 
-    const whySucceeded = !whyResult.timedOut && whyResult.exitCode === 0;
-
-    packages.push({
-      package: stripVersionFromPackageSpec(entry.package),
-      status: whySucceeded && auditSucceeded ? 'collected' : 'degraded',
-      whyText: whyResult.stdout.length > 0 ? whyResult.stdout : undefined,
-      auditJson,
-      declaredVersions: entry.declaredVersions,
-      error:
-        [
-          auditError,
-          whySucceeded ? undefined : whyResult.stderr || 'bun why failed',
-        ]
-          .filter((value): value is string => value !== undefined)
-          .join('; ') || undefined,
-    });
-  }
+      return {
+        package: stripVersionFromPackageSpec(entry.package),
+        status: whySucceeded && auditSucceeded ? 'collected' : 'degraded',
+        whyText: whyResult.stdout.length > 0 ? whyResult.stdout : undefined,
+        auditJson,
+        declaredVersions: entry.declaredVersions,
+        error:
+          [
+            auditError,
+            whySucceeded
+              ? undefined
+              : whyResult.stderr ||
+                (whyResult.timedOut ? 'bun why timed out' : 'bun why failed'),
+          ]
+            .filter((value): value is string => value !== undefined)
+            .join('; ') || undefined,
+      };
+    },
+  );
 
   return usageArtifactSchema.parse({
     schemaVersion: '1',

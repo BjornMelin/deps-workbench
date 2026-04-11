@@ -76,7 +76,7 @@ function requireOptionValue(
   flagName: string,
 ): string | ParsedCliCommand {
   const value = args[index + 1];
-  if (value === undefined || value.startsWith('--')) {
+  if (value === undefined || value.length === 0 || value.startsWith('--')) {
     return {
       kind: 'error',
       message: `Missing value for ${flagName}`,
@@ -251,12 +251,20 @@ export async function runCli(
   }
 
   if (parsed.kind === 'prepare') {
-    const result = await runPrepareCommand(parsed.options);
-    return {
-      exitCode: result.exitCode,
-      stdout: result.stdout,
-      stderr: '',
-    };
+    try {
+      const result = await runPrepareCommand(parsed.options);
+      return {
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: '',
+      };
+    } catch (error) {
+      return {
+        exitCode: 1,
+        stdout: '',
+        stderr: `${error instanceof Error ? error.message : String(error)}\n`,
+      };
+    }
   }
 
   if (parsed.kind === 'placeholder') {

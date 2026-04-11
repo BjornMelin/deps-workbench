@@ -376,7 +376,6 @@ export async function createPrepBundle(
     family: 'docs',
     cacheInput: {
       request,
-      sourcePaths: sourcePathsCached.value.packages,
       preflight,
     },
     schema: docsArtifactSchema,

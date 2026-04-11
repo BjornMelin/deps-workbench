@@ -56,7 +56,7 @@ export const toolProbeSchema = z
     available: z.boolean(),
     executablePath: pathSchema.optional(),
     version: nonEmptyStringSchema.optional(),
-    notes: stringListSchema.default([]),
+    notes: stringListSchema.default(() => []),
   })
   .strict();
 
@@ -64,8 +64,8 @@ export const toolProbeSchema = z
 export const preflightSummarySchema = z
   .object({
     tools: z.array(toolProbeSchema).min(1),
-    missingRequiredTools: stringListSchema.default([]),
-    missingOptionalTools: stringListSchema.default([]),
+    missingRequiredTools: stringListSchema.default(() => []),
+    missingOptionalTools: stringListSchema.default(() => []),
   })
   .strict();
 
@@ -73,10 +73,10 @@ export const preflightSummarySchema = z
 export const artifactProvenanceSchema = z
   .object({
     sourceFamilies: z.array(sourceFamilySchema).min(1),
-    commands: stringListSchema.default([]),
+    commands: stringListSchema.default(() => []),
     freshness: artifactFreshnessSchema,
     cacheKey: nonEmptyStringSchema.optional(),
-    notes: stringListSchema.default([]),
+    notes: stringListSchema.default(() => []),
   })
   .strict();
 
@@ -93,8 +93,8 @@ export const dependencyOccurrenceSchema = z
 export const dependencyMetaEntrySchema = z
   .object({
     package: nonEmptyStringSchema,
-    occurrences: z.array(dependencyOccurrenceSchema).default([]),
-    declaredVersions: stringListSchema.default([]),
+    occurrences: z.array(dependencyOccurrenceSchema).default(() => []),
+    declaredVersions: stringListSchema.default(() => []),
     resolvedCurrentVersion: nonEmptyStringSchema.optional(),
     targetVersion: nonEmptyStringSchema.optional(),
   })
@@ -165,7 +165,7 @@ export const releasesPackageEntrySchema = z
     package: nonEmptyStringSchema,
     repository: nonEmptyStringSchema.optional(),
     status: collectionStatusSchema,
-    releases: z.array(releaseItemSchema).default([]),
+    releases: z.array(releaseItemSchema).default(() => []),
     rawText: z.string().optional(),
     error: nonEmptyStringSchema.optional(),
   })
@@ -244,7 +244,7 @@ export const usagePackageEntrySchema = z
     status: collectionStatusSchema,
     whyText: z.string().optional(),
     auditJson: z.unknown().optional(),
-    declaredVersions: stringListSchema.default([]),
+    declaredVersions: stringListSchema.default(() => []),
     error: nonEmptyStringSchema.optional(),
   })
   .strict();
@@ -274,7 +274,7 @@ export const signalEntrySchema = z
 export const signalsPackageEntrySchema = z
   .object({
     package: nonEmptyStringSchema,
-    signals: z.array(signalEntrySchema).default([]),
+    signals: z.array(signalEntrySchema).default(() => []),
   })
   .strict();
 
@@ -300,9 +300,9 @@ export const prepManifestSchema = z
     createdAt: isoTimestampSchema,
     request: prepRequestSchema,
     artifactFamilies: z.array(artifactFamilySchema).min(1),
-    degradedArtifactFamilies: z.array(artifactFamilySchema).default([]),
+    degradedArtifactFamilies: z.array(artifactFamilySchema).default(() => []),
     sourceFamilies: z.array(sourceFamilySchema).min(1),
-    cacheKeys: z.array(cacheKeySchema).default([]),
+    cacheKeys: z.array(cacheKeySchema).default(() => []),
     artifactFiles: artifactFilesSchema,
     preflight: preflightSummarySchema,
   })

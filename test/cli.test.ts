@@ -43,6 +43,16 @@ describe('cli parsing', () => {
     });
   });
 
+  test('rejects empty option values for prepare flags', () => {
+    const parsed = parseCliArgs(['prepare', '--target', '', 'zod']);
+
+    expect(parsed).toEqual({
+      kind: 'error',
+      message: 'Missing value for --target',
+      exitCode: 2,
+    });
+  });
+
   test('reports placeholder commands clearly', async () => {
     const result = await runCli(['report']);
 
