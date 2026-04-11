@@ -670,12 +670,11 @@ describe('analyzePreparedRun', () => {
     }
   });
 
-  test('loads policy from the caller repo root instead of the manifest root', async () => {
+  test('rejects manifests whose identity does not match the requested run', async () => {
     const tempRepo = await makeTempRepo();
-    let capturedRepoRoot: string | undefined;
+    const runId = 'run_manifest_identity_guard';
 
     try {
-      const runId = 'run_policy_root_guard';
       await writePrepFixture(tempRepo, runId, {
         mode: 'implementation',
       });
@@ -691,6 +690,25 @@ describe('analyzePreparedRun', () => {
       await writeJsonFileAtomic(manifestPath, {
         ...manifest,
         repoRoot: path.join(tempRepo, '..', 'tampered-root'),
+        runId: 'other-run',
+      });
+
+      await expect(loadPrepBundleFromRunId(tempRepo, runId)).rejects.toThrow(
+        'prep manifest identity mismatch',
+      );
+    } finally {
+      await rm(tempRepo, { recursive: true, force: true });
+    }
+  });
+
+  test('loads policy from the caller repo root instead of the manifest root', async () => {
+    const tempRepo = await makeTempRepo();
+    let capturedRepoRoot: string | undefined;
+
+    try {
+      const runId = 'run_policy_root_guard';
+      await writePrepFixture(tempRepo, runId, {
+        mode: 'implementation',
       });
 
       await analyzePreparedRun(

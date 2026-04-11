@@ -116,10 +116,10 @@ function didEscalationResolveUncertainty(input: {
 /**
  * Loads a prepared bundle, synthesizes analysis, and writes the result bundle.
  *
- * @see https://openai.github.io/openai-agents-js/
  * @param options - Repository root and prep run id to analyze.
  * @param dependencies - Optional clock, policy loader, and model executor overrides.
  * @returns Parsed result bundle metadata after the analysis artifacts are written.
+ * @see https://openai.github.io/openai-agents-js/
  */
 export async function analyzePreparedRun(
   options: AnalyzeRunOptions,
@@ -127,10 +127,13 @@ export async function analyzePreparedRun(
 ): Promise<AnalyzeRunResult> {
   const now = dependencies.now ?? (() => new Date());
   const repoRoot = options.repoRoot ?? process.cwd();
-  const prepBundle = await loadPrepBundleFromRunId(repoRoot, options.runId);
-  const policy = await (dependencies.loadPolicy ?? loadCheckedInPolicy)(
-    repoRoot,
-  );
+  const loadPolicy = dependencies.loadPolicy ?? loadCheckedInPolicy;
+  const prepBundlePromise = loadPrepBundleFromRunId(repoRoot, options.runId);
+  const policyPromise = loadPolicy(repoRoot);
+  const [prepBundle, policy] = await Promise.all([
+    prepBundlePromise,
+    policyPromise,
+  ]);
   const structuralAssessment = evaluateStructuralEligibility(
     prepBundle,
     prepBundle.manifest.mode,

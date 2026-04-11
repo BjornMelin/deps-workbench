@@ -71,6 +71,7 @@ async function readPrepArtifact<T>(
  * @param manifestPath - Path to the prep manifest JSON file.
  * @param runDirectory - Canonical run directory used to validate manifest and artifact paths.
  * @returns Loaded and schema-validated prep bundle.
+ * @throws When the manifest path or manifest identity does not match the requested run.
  */
 export async function loadPrepBundleFromManifest(
   manifestPath: string,
@@ -86,6 +87,18 @@ export async function loadPrepBundleFromManifest(
   }
 
   const manifest = await readJsonFile(manifestPath, prepManifestSchema);
+  const expectedRepoRoot = path.resolve(runDirectory, '..', '..', '..');
+  const expectedRunId = path.basename(runDirectory);
+
+  if (
+    path.resolve(manifest.repoRoot) !== expectedRepoRoot ||
+    manifest.runId !== expectedRunId
+  ) {
+    throw new Error(
+      `prep manifest identity mismatch: expected ${expectedRepoRoot}/${expectedRunId}, got ${path.resolve(manifest.repoRoot)}/${manifest.runId}`,
+    );
+  }
+
   const prepRoot = path.join(runDirectory, 'prep');
   const artifactRoot = assertPathWithinBase(prepRoot, manifest.artifactRoot);
   const [meta, docs, releases, sourcePaths, diff, usage, signals] =
