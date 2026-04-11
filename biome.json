@@ -7,14 +7,23 @@
     "defaultBranch": "main"
   },
   "files": {
-    "includes": ["**"],
+    "includes": [
+      "src/**",
+      "test/**",
+      "fixtures/**",
+      "config/**",
+      "package.json",
+      "tsconfig.json",
+      "biome.json"
+    ],
     "ignoreUnknown": true
   },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineEnding": "lf"
+    "lineEnding": "lf",
+    "lineWidth": 80
   },
   "linter": {
     "enabled": true,
