@@ -9,6 +9,20 @@
       "nano": "gpt-5.4-nano",
       "mini": "gpt-5.4-mini",
       "full": "gpt-5.4"
+    },
+    "thresholds": {
+      "triageNanoMax": 34,
+      "fullEscalationMin": 72,
+      "recoveryEscalationMin": 58
+    },
+    "weights": {
+      "upgradeSeverity": 25,
+      "evidenceConflict": 20,
+      "repoBlastRadius": 20,
+      "apiSurfaceMovement": 15,
+      "replacementOpportunity": 10,
+      "uncertainty": 5,
+      "coupling": 5
     }
   },
   "recovery": {

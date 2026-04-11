@@ -12,7 +12,7 @@ and model synthesis.
 
 ## Phase status
 
-- [todo] Not started
+- [done] Completed and verified
 
 ## Custom execution persona
 
@@ -54,7 +54,8 @@ the same reasoning tax later.
 - analysis runtime is OpenAI Agents JS SDK-based
 - provider strategy is OpenAI-first and OpenAI-only in v1
 - escalation is conservative: nano -> mini -> full
-- one bounded automatic recovery hop with a strict allowlist
+- one bounded automatic recovery hop with a strict allowlist, limited to
+  `implementation` mode
 - result output is implementation-driving with per-claim confidence and
   explicit `UNVERIFIED`
 - outcome classes are explicit and hybrid structural+semantic
@@ -108,47 +109,59 @@ Read before implementation:
 
 ### Intake and eligibility
 
-- [ ] validate prepared bundle intake against schema
-- [ ] implement minimum evidence pillar checks
-- [ ] classify structurally degraded or blocked runs before synthesis
+- [x] validate prepared bundle intake against schema
+- [x] implement minimum evidence pillar checks
+- [x] classify structurally degraded or blocked runs before synthesis
 
 ### Routing and model policy
 
-- [ ] implement weighted escalation scoring
-- [ ] implement conservative routing thresholds
-- [ ] implement explicit mode-aware routing behavior
-- [ ] keep provider scope OpenAI-only in v1
+- [x] implement weighted escalation scoring
+- [x] implement conservative routing thresholds
+- [x] implement explicit mode-aware routing behavior
+- [x] keep provider scope OpenAI-only in v1
 
 ### Recovery and run recording
 
-- [ ] implement one bounded recovery hop model
-- [ ] enforce the strict allowlist
-- [ ] record recovery in manifests/result metadata
+- [x] implement one bounded recovery hop model
+- [x] enforce the strict allowlist
+- [x] record recovery in manifests/result metadata
 
 ### Result generation
 
-- [ ] write `result_manifest.json`
-- [ ] write `decision_report.json`
-- [ ] write `evidence_map.json`
-- [ ] write `implementation_checklist.json`
-- [ ] write `validation_checklist.json`
-- [ ] support optional `open_questions.json`
-- [ ] ensure per-claim confidence and `UNVERIFIED` are explicit
+- [x] write `result_manifest.json`
+- [x] write `decision_report.json`
+- [x] write `evidence_map.json`
+- [x] write `implementation_checklist.json`
+- [x] write `validation_checklist.json`
+- [x] support optional `open_questions.json`
+- [x] ensure per-claim confidence and `UNVERIFIED` are explicit
 
 ### Testing
 
-- [ ] add tests for routing thresholds
-- [ ] add tests for blocked/degraded outcome classes
-- [ ] add tests for recovery recording
-- [ ] add tests for result bundle schema conformance
+- [x] add tests for routing thresholds
+- [x] add tests for blocked/degraded outcome classes
+- [x] add tests for recovery recording
+- [x] add tests for result bundle schema conformance
 
 ## Execution notes
 
-- [ ] add notes here as implementation proceeds
+- [x] Added a real `analyze` command that only consumes prepared bundles from
+  `.local/runs/<runId>/prep/manifest.json`.
+- [x] Added structural eligibility checks so blocked or degraded runs are
+  classified before any model call.
+- [x] Added weighted model routing, result-bundle writing, and a bounded single
+  escalation recovery hop recorded in the result manifest.
+- [x] Tightened recovery semantics so only `implementation` runs may
+  auto-escalate, and only escalations that end in `ready_to_implement` are
+  recorded as successful recovery.
+- [x] Kept the prompt example schema-valid so model-followed example output does
+  not fail `analysisSynthesisSchema` parsing.
+- [x] Kept Phase 04 synchronous by design; background orchestration and
+  operator-facing continuation remain scoped to Phase 05.
 
 ## Blockers
 
-- [ ] none recorded yet
+- [x] none
 
 ## Verification
 
@@ -159,15 +172,16 @@ bun run test
 
 ## Verification record
 
-- [ ] `bun run typecheck`
-- [ ] `bun run test`
+- [x] `bun run typecheck`
+- [x] `bun run test`
+- [x] `bun run check`
 
 ## Completion criteria
 
 This phase is complete only if:
 
 - the runtime consumes prepared bundles instead of recollecting evidence
-- routing and recovery are explicit and bounded
+- routing and recovery are explicit, bounded, and mode-aware
 - the result bundle is implementation-driving and schema-valid
 - outcome class and primary action are present in the result manifest
 - the phase-local status and README master ledger are updated together

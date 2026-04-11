@@ -2,11 +2,31 @@
   "schemaVersion": "1",
   "runId": "run_123",
   "mode": "implementation",
+  "prepManifestPath": "/repo/.local/runs/run_123/prep/manifest.json",
   "resultRoot": "/repo/.local/runs/run_123/result",
   "createdAt": "2026-04-10T12:05:00.000Z",
   "outcomeClass": "review_required",
   "primaryAction": "review_key_claims",
   "modelUsed": "gpt-5.4-mini",
+  "routingDecision": {
+    "selectedTier": "mini",
+    "selectedModel": "gpt-5.4-mini",
+    "escalationScore": 64,
+    "thresholds": {
+      "triageNanoMax": 34,
+      "fullEscalationMin": 72,
+      "recoveryEscalationMin": 58
+    },
+    "factors": [
+      {
+        "category": "upgradeSeverity",
+        "rawScore": 100,
+        "weightedContribution": 25,
+        "rationale": "major upgrade requested"
+      }
+    ]
+  },
+  "recovery": [],
   "topRiskSignals": ["major_version_change"],
   "topUnverifiedItems": [
     {
@@ -16,6 +36,15 @@
     }
   ],
   "recommendedNextMode": "implementation",
+  "promotionReason": "implementation output is warranted after review",
+  "promotionConfidence": 0.72,
+  "recommendedReadOrder": [
+    "result_manifest.json",
+    "decision_report.json",
+    "implementation_checklist.json"
+  ],
+  "stopConditions": [],
+  "sourceFamilies": ["filesystem", "ctx7", "gh", "opensrc", "git", "bun"],
   "resultFiles": {
     "executiveBrief": "/repo/.local/runs/run_123/result/executive_brief.md",
     "decisionReport": "/repo/.local/runs/run_123/result/decision_report.json",

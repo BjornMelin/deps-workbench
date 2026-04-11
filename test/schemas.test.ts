@@ -3,7 +3,12 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { prepManifestSchema, resultManifestSchema } from '../src/schemas';
+import {
+  evidenceReferenceSchema,
+  policySchema,
+  prepManifestSchema,
+  resultManifestSchema,
+} from '../src/schemas';
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -42,6 +47,51 @@ describe('schema contracts', () => {
         ...fixture,
         outcomeClass: 'blocked',
         primaryAction: 'review_key_claims',
+      }),
+    ).toThrow();
+  });
+
+  test('rejects a policy with overlapping routing thresholds', () => {
+    expect(() =>
+      policySchema.parse({
+        modes: {
+          default: 'implementation',
+          allowed: ['triage', 'research', 'implementation'],
+        },
+        modelRouting: {
+          tiers: {
+            nano: 'gpt-5.4-nano',
+            mini: 'gpt-5.4-mini',
+            full: 'gpt-5.4',
+          },
+          thresholds: {
+            triageNanoMax: 72,
+            fullEscalationMin: 58,
+            recoveryEscalationMin: 58,
+          },
+          weights: {
+            upgradeSeverity: 25,
+            evidenceConflict: 20,
+            repoBlastRadius: 20,
+            apiSurfaceMovement: 15,
+            replacementOpportunity: 10,
+            uncertainty: 5,
+            coupling: 5,
+          },
+        },
+        recovery: {
+          maxAutomaticHops: 1,
+          allowedActions: ['re_run_with_escalation'],
+        },
+        frameworkEnrichments: ['react'],
+      }),
+    ).toThrow();
+  });
+
+  test('rejects evidence references that are not locatable', () => {
+    expect(() =>
+      evidenceReferenceSchema.parse({
+        artifactFamily: 'docs',
       }),
     ).toThrow();
   });

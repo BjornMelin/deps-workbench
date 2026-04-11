@@ -53,6 +53,18 @@ describe('cli parsing', () => {
     });
   });
 
+  test('parses analyze arguments', () => {
+    const parsed = parseCliArgs(['analyze', '--run-id', 'run_123', '--json']);
+
+    expect(parsed).toEqual({
+      kind: 'analyze',
+      options: {
+        runId: 'run_123',
+        json: true,
+      },
+    });
+  });
+
   test('reports placeholder commands clearly', async () => {
     const result = await runCli(['report']);
 

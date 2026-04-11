@@ -112,6 +112,20 @@ export function resolvePrepArtifactRoot(
 }
 
 /**
+ * Result artifact root: `.local/runs/<runId>/result/`.
+ *
+ * @param repoRoot - Repository root that owns the `.local/runs` subtree.
+ * @param runId - Run identifier for one analysis/result cycle.
+ * @returns Absolute result artifact directory path.
+ */
+export function resolveResultArtifactRoot(
+  repoRoot: string,
+  runId: string,
+): string {
+  return assertPathWithinBase(resolveRunDirectory(repoRoot, runId), 'result');
+}
+
+/**
  * Cache path for an artifact family and stable hash key under `.local/cache/`.
  *
  * @param repoRoot - Repository root that owns the `.local/cache` subtree.

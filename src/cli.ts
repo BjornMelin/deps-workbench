@@ -1,3 +1,4 @@
+import { getAnalyzeHelp, runAnalyzeCommand } from './commands/analyze';
 import { getPrepareHelp, runPrepareCommand } from './commands/prepare';
 
 type ParsedCliCommand =
@@ -14,10 +15,18 @@ type ParsedCliCommand =
         json?: boolean;
       };
     }
+  | {
+      kind: 'analyze';
+      options: {
+        repoRoot?: string;
+        runId: string;
+        json?: boolean;
+      };
+    }
   | { kind: 'placeholder'; commandName: string }
   | { kind: 'error'; message: string; exitCode: number };
 
-const PLACEHOLDER_COMMANDS = new Set(['analyze', 'report', 'run', 'resume']);
+const PLACEHOLDER_COMMANDS = new Set(['report', 'run', 'resume']);
 
 async function readPackageVersion(): Promise<string> {
   try {
@@ -40,8 +49,8 @@ async function readPackageVersion(): Promise<string> {
 export function describeRepoIntent(): string {
   return [
     'deps-workbench CLI',
-    'implemented commands: prepare',
-    'planned commands: analyze, report, run, resume',
+    'implemented commands: prepare, analyze',
+    'planned commands: report, run, resume',
     'execution authority: docs/plan/README.md',
   ].join(' | ');
 }
@@ -59,7 +68,7 @@ export function getCliHelp(): string {
     '',
     'Commands:',
     '  prepare   deterministic local evidence collection only',
-    '  analyze   reserved for Phase 04',
+    '  analyze   model-driven analysis over an existing prep bundle',
     '  report    reserved for Phase 05',
     '  run       reserved for Phase 05',
     '  resume    reserved for Phase 05',
@@ -185,6 +194,70 @@ function parsePrepareArgs(args: string[]): ParsedCliCommand {
   return options;
 }
 
+function parseAnalyzeArgs(args: string[]): ParsedCliCommand {
+  const options: ParsedCliCommand & { kind: 'analyze' } = {
+    kind: 'analyze',
+    options: {
+      runId: '',
+    },
+  };
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (arg === undefined) {
+      break;
+    }
+
+    if (arg === '--help') {
+      return { kind: 'help' };
+    }
+
+    if (arg === '--json') {
+      options.options.json = true;
+      continue;
+    }
+
+    if (arg === '--repo-root') {
+      const value = requireOptionValue(args, index, '--repo-root');
+      if (typeof value !== 'string') {
+        return value;
+      }
+
+      options.options.repoRoot = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg === '--run-id') {
+      const value = requireOptionValue(args, index, '--run-id');
+      if (typeof value !== 'string') {
+        return value;
+      }
+
+      options.options.runId = value;
+      index += 1;
+      continue;
+    }
+
+    return {
+      kind: 'error',
+      message: `Unknown analyze option: ${arg}`,
+      exitCode: 2,
+    };
+  }
+
+  if (options.options.runId.length === 0) {
+    return {
+      kind: 'error',
+      message: 'analyze requires --run-id',
+      exitCode: 2,
+    };
+  }
+
+  return options;
+}
+
 /**
  * Parses argv-style tokens into a command, options, or a structured error.
  *
@@ -205,6 +278,10 @@ export function parseCliArgs(args: string[]): ParsedCliCommand {
 
   if (commandName === 'prepare') {
     return parsePrepareArgs(rest);
+  }
+
+  if (commandName === 'analyze') {
+    return parseAnalyzeArgs(rest);
   }
 
   if (commandName !== undefined && PLACEHOLDER_COMMANDS.has(commandName)) {
@@ -235,7 +312,7 @@ export async function runCli(
   if (parsed.kind === 'help') {
     return {
       exitCode: 0,
-      stdout: `${getCliHelp()}\n\n${getPrepareHelp()}\n`,
+      stdout: `${getCliHelp()}\n\n${getPrepareHelp()}\n\n${getAnalyzeHelp()}\n`,
       stderr: '',
     };
   }
@@ -253,6 +330,23 @@ export async function runCli(
   if (parsed.kind === 'prepare') {
     try {
       const result = await runPrepareCommand(parsed.options);
+      return {
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: '',
+      };
+    } catch (error) {
+      return {
+        exitCode: 1,
+        stdout: '',
+        stderr: `${error instanceof Error ? error.message : String(error)}\n`,
+      };
+    }
+  }
+
+  if (parsed.kind === 'analyze') {
+    try {
+      const result = await runAnalyzeCommand(parsed.options);
       return {
         exitCode: result.exitCode,
         stdout: result.stdout,
