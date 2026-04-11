@@ -1,6 +1,4 @@
-/**
- * @fileoverview Zod schemas and inferred types for analysis outputs and result bundles.
- */
+/* Zod schemas and inferred types for analysis outputs and result bundles. */
 
 import { z } from 'zod';
 import {
@@ -31,7 +29,15 @@ export const evidenceReferenceSchema = z
     locator: nonEmptyStringSchema.optional(),
     excerpt: z.string().max(500).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.package === undefined && value.locator === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'evidence references must include package or locator',
+      });
+    }
+  });
 
 export const resultClaimSchema = z
   .object({

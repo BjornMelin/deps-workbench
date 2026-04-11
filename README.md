@@ -74,7 +74,7 @@ bun install
 bun run biome:write
 bun run biome:ci
 bun run dev prepare --request "upgrade react to latest" --package react
-bun run dev analyze --run-id <run-id>
+bun run dev analyze --run-id run_123
 bun run dev
 bun run test
 bun run typecheck

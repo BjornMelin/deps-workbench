@@ -38,6 +38,7 @@ const fixtureRepoRoot = path.join(
 type PrepFixtureOverrides = {
   mode?: 'triage' | 'research' | 'implementation';
   targetVersion?: string;
+  currentVersion?: string;
   occurrenceCount?: number;
   docsStatus?: 'collected' | 'degraded';
   releasesStatus?: 'collected' | 'degraded';
@@ -66,7 +67,7 @@ async function writePrepFixture(
   const occurrenceCount = overrides.occurrenceCount ?? 1;
   const targetVersion =
     'targetVersion' in overrides ? overrides.targetVersion : '4.4.0';
-  const currentVersion = '4.3.6';
+  const currentVersion = overrides.currentVersion ?? '4.3.6';
   const docsStatus = overrides.docsStatus ?? 'collected';
   const releasesStatus = overrides.releasesStatus ?? 'collected';
   const diffStatus = overrides.diffStatus ?? 'collected';
@@ -479,6 +480,34 @@ describe('buildRoutingDecision', () => {
       await rm(tempRepo, { recursive: true, force: true });
     }
   });
+
+  test('scores 0.x to 1.x upgrades as high risk', async () => {
+    const tempRepo = await makeTempRepo();
+
+    try {
+      await writePrepFixture(tempRepo, 'run_major_boundary', {
+        mode: 'implementation',
+        currentVersion: '0.9.0',
+        targetVersion: '1.0.0',
+        occurrenceCount: 1,
+        diffSummaryText: ' 2 files changed, 12 insertions(+), 3 deletions(-)',
+      });
+      const prepBundle = await loadPrepBundleFromRunId(
+        tempRepo,
+        'run_major_boundary',
+      );
+      const policy = await loadCheckedInPolicy(tempRepo);
+
+      const decision = buildRoutingDecision({ prepBundle, policy });
+
+      expect(
+        decision.factors.find((factor) => factor.category === 'upgradeSeverity')
+          ?.rawScore,
+      ).toBe(100);
+    } finally {
+      await rm(tempRepo, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('analyzePreparedRun', () => {
@@ -516,6 +545,39 @@ describe('analyzePreparedRun', () => {
           ) as unknown,
         ).semanticOutcome,
       ).toBe('blocked');
+    } finally {
+      await rm(tempRepo, { recursive: true, force: true });
+    }
+  });
+
+  test('rejects prep bundles whose artifact files escape the run boundary', async () => {
+    const tempRepo = await makeTempRepo();
+    const runId = 'run_escape';
+
+    try {
+      await writePrepFixture(tempRepo, runId, {
+        mode: 'implementation',
+      });
+
+      const manifestPath = path.join(
+        resolvePrepArtifactRoot(tempRepo, runId),
+        'manifest.json',
+      );
+      const manifest = prepManifestSchema.parse(
+        JSON.parse(await Bun.file(manifestPath).text()) as unknown,
+      );
+
+      await writeJsonFileAtomic(manifestPath, {
+        ...manifest,
+        artifactFiles: {
+          ...manifest.artifactFiles,
+          meta: path.join(tempRepo, '..', 'outside.json'),
+        },
+      });
+
+      await expect(loadPrepBundleFromRunId(tempRepo, runId)).rejects.toThrow(
+        /outside/,
+      );
     } finally {
       await rm(tempRepo, { recursive: true, force: true });
     }

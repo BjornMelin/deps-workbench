@@ -6,6 +6,12 @@ import type {
   RoutingDecision,
 } from '../../schemas';
 
+/**
+ * Determines whether the bounded escalation retry should be attempted.
+ *
+ * @param input - Mode, routing, synthesis, policy, and current recovery count.
+ * @returns True when the run may benefit from one escalation hop.
+ */
 export function shouldAttemptEscalationRecovery(input: {
   mode: Mode;
   routingDecision: RoutingDecision;
@@ -56,6 +62,12 @@ export function shouldAttemptEscalationRecovery(input: {
   );
 }
 
+/**
+ * Builds a typed recovery record for the single bounded escalation hop.
+ *
+ * @param input - Recovery status, trigger, tier transition, and optional notes.
+ * @returns A schema-compatible recovery record.
+ */
 export function buildRecoveryRecord(input: {
   status: RecoveryRecord['status'];
   trigger: string;

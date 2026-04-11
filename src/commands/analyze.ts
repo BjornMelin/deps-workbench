@@ -3,10 +3,16 @@ import {
   analyzePreparedRun,
 } from '../core/runtime/analyze-run';
 
+/** Options for the `analyze` CLI, including optional JSON manifest output. */
 export type AnalyzeCommandOptions = AnalyzeRunOptions & {
   json?: boolean;
 };
 
+/**
+ * Help text for `deps-workbench analyze`.
+ *
+ * @returns Operator-facing help text for the `analyze` command.
+ */
 export function getAnalyzeHelp(): string {
   return [
     'Usage: deps-workbench analyze --run-id <id> [options]',
@@ -34,6 +40,12 @@ function renderAnalyzeSummary(
   ].join('\n');
 }
 
+/**
+ * Runs the analysis command and returns the rendered stdout payload.
+ *
+ * @param options - Repository root, run id, and optional `--json` output.
+ * @returns Exit code and stdout payload for CLI rendering.
+ */
 export async function runAnalyzeCommand(
   options: AnalyzeCommandOptions,
 ): Promise<{ exitCode: number; stdout: string }> {

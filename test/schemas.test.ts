@@ -3,7 +3,11 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { prepManifestSchema, resultManifestSchema } from '../src/schemas';
+import {
+  evidenceReferenceSchema,
+  prepManifestSchema,
+  resultManifestSchema,
+} from '../src/schemas';
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -42,6 +46,14 @@ describe('schema contracts', () => {
         ...fixture,
         outcomeClass: 'blocked',
         primaryAction: 'review_key_claims',
+      }),
+    ).toThrow();
+  });
+
+  test('rejects evidence references that are not locatable', () => {
+    expect(() =>
+      evidenceReferenceSchema.parse({
+        artifactFamily: 'docs',
       }),
     ).toThrow();
   });

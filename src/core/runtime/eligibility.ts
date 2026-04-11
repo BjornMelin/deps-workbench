@@ -6,12 +6,16 @@ import type {
 } from '../../schemas';
 import type { LoadedPrepBundle } from './intake';
 
+/** Package-scoped structural blockers and degradations observed before synthesis. */
 export type StructuralFinding = {
   package: string;
   blockers: string[];
   degradations: string[];
 };
 
+/**
+ * Aggregate structural eligibility state used to gate synthesis and fallback claims.
+ */
 export type StructuralAssessment = {
   canSynthesize: boolean;
   readyForImplementation: boolean;
@@ -64,6 +68,13 @@ function buildFallbackClaim(
   };
 }
 
+/**
+ * Evaluates structural eligibility for synthesis based on prep bundle completeness.
+ *
+ * @param prepBundle - Loaded prep bundle containing all artifact families.
+ * @param mode - Operator mode that determines implementation gating behavior.
+ * @returns Structural assessment with synthesis readiness, findings, and fallback claims.
+ */
 export function evaluateStructuralEligibility(
   prepBundle: LoadedPrepBundle,
   mode: Mode,
@@ -71,6 +82,13 @@ export function evaluateStructuralEligibility(
   const findings: StructuralFinding[] = [];
   const stopConditions: string[] = [];
   const fallbackClaims: ResultClaim[] = [];
+  const bundleDegradationMessage =
+    prepBundle.manifest.degradedArtifactFamilies.length > 0
+      ? `prep bundle degraded families: ${prepBundle.manifest.degradedArtifactFamilies.join(
+          ', ',
+        )}`
+      : null;
+  const bundleDegradationPackage = prepBundle.meta.packages[0]?.package;
 
   for (const packageEntry of prepBundle.meta.packages) {
     const packageName = packageEntry.package;
@@ -118,12 +136,11 @@ export function evaluateStructuralEligibility(
       degradations.push('target version is unspecified');
     }
 
-    if (prepBundle.manifest.degradedArtifactFamilies.length > 0) {
-      degradations.push(
-        `prep bundle degraded families: ${prepBundle.manifest.degradedArtifactFamilies.join(
-          ', ',
-        )}`,
-      );
+    if (
+      bundleDegradationMessage !== null &&
+      packageName === bundleDegradationPackage
+    ) {
+      degradations.push(bundleDegradationMessage);
     }
 
     findings.push({

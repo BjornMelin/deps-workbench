@@ -19,17 +19,20 @@ import {
 } from './recovery';
 import { buildRoutingDecision } from './routing';
 
+/** CLI/runtime options for analyzing one prepared run. */
 export type AnalyzeRunOptions = {
   repoRoot?: string;
   runId: string;
 };
 
+/** Optional dependency overrides used by tests and non-default callers. */
 export type AnalyzeRunDependencies = {
   now?: () => Date;
   loadPolicy?: (repoRoot: string) => Promise<Policy>;
   modelExecutor?: AnalysisModelExecutor;
 };
 
+/** Parsed result bundle returned by the analysis runtime. */
 export type AnalyzeRunResult = Awaited<ReturnType<typeof writeResultBundle>>;
 
 function blockedSynthesis(input: {
@@ -110,6 +113,13 @@ function didEscalationResolveUncertainty(input: {
   );
 }
 
+/**
+ * Loads a prepared bundle, synthesizes analysis, and writes the result bundle.
+ *
+ * @param options - Repository root and prep run id to analyze.
+ * @param dependencies - Optional clock, policy loader, and model executor overrides.
+ * @returns Parsed result bundle metadata after the analysis artifacts are written.
+ */
 export async function analyzePreparedRun(
   options: AnalyzeRunOptions,
   dependencies: AnalyzeRunDependencies = {},

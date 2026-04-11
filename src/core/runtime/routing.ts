@@ -1,3 +1,5 @@
+import { coerce, minVersion } from 'semver';
+
 import type { Policy, RoutingDecision } from '../../schemas';
 import type { LoadedPrepBundle } from './intake';
 
@@ -30,22 +32,33 @@ function parseChangeMagnitude(summaryText: string | undefined): number {
   return clampScore(filesChanged * 6 + (insertions + deletions) / 8);
 }
 
+function extractMajor(version: string | undefined): number | null {
+  if (version === undefined) {
+    return null;
+  }
+
+  return coerce(version)?.major ?? minVersion(version)?.major ?? null;
+}
+
 function majorVersionScore(prepBundle: LoadedPrepBundle): number {
   const majors = prepBundle.sourcePaths.packages.map((entry) => {
-    const current = Number(entry.current?.version?.split('.')[0] ?? '0');
-    const target = Number(
-      (
-        entry.target?.version ?? prepBundle.manifest.request.targetVersion
-      )?.split('.')[0] ?? '0',
+    const current = extractMajor(entry.current?.version);
+    const target = extractMajor(
+      entry.target?.version ?? prepBundle.manifest.request.targetVersion,
     );
 
-    if (target > current && current > 0) {
+    if (current !== null && target !== null && target > current) {
       return 100;
     }
-    if (target === current && target > 0) {
+    if (
+      current !== null &&
+      target !== null &&
+      target === current &&
+      target > 0
+    ) {
       return 35;
     }
-    return prepBundle.manifest.request.targetVersion ? 55 : 20;
+    return target !== null ? 55 : 20;
   });
 
   return clampScore(
@@ -125,6 +138,12 @@ function couplingScore(prepBundle: LoadedPrepBundle): number {
   return clampScore(packageFields + prepBundle.meta.repo.workspaceCount * 4);
 }
 
+/**
+ * Computes the weighted routing decision for one prepared bundle.
+ *
+ * @param input - Prepared bundle plus checked-in routing policy.
+ * @returns Tier, selected model, threshold snapshot, and scoring factors.
+ */
 export function buildRoutingDecision(input: {
   prepBundle: LoadedPrepBundle;
   policy: Policy;

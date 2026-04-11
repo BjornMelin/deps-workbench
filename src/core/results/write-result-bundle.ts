@@ -18,6 +18,7 @@ import type { LoadedPrepBundle } from '../runtime/intake';
 import { writeJsonFileAtomic } from '../storage/json';
 import { resolveResultArtifactRoot } from '../storage/paths';
 
+/** Structured input required to render the canonical result bundle. */
 export type ResultBundleWriteInput = {
   prepBundle: LoadedPrepBundle;
   synthesis: AnalysisSynthesis;
@@ -30,6 +31,7 @@ export type ResultBundleWriteInput = {
   structuralAssessment: StructuralAssessment;
 };
 
+/** Paths and manifest produced by a completed result bundle write. */
 export type WrittenResultBundle = {
   resultRoot: string;
   manifestPath: string;
@@ -77,6 +79,12 @@ function renderExecutiveBrief(input: {
   return `${lines.join('\n')}\n`;
 }
 
+/**
+ * Writes the canonical analysis result bundle under `.local/runs/<runId>/result`.
+ *
+ * @param input - Prepared bundle, synthesis, routing, recovery, and metadata.
+ * @returns Result root, manifest path, and parsed result manifest.
+ */
 export async function writeResultBundle(
   input: ResultBundleWriteInput,
 ): Promise<WrittenResultBundle> {
@@ -173,6 +181,7 @@ export async function writeResultBundle(
     sourceFamilies: input.prepBundle.manifest.sourceFamilies,
     resultFiles,
   });
+  const manifestPath = path.join(resultRoot, 'result_manifest.json');
 
   await Promise.all([
     Bun.write(
@@ -192,18 +201,15 @@ export async function writeResultBundle(
       implementationChecklist,
     ),
     writeJsonFileAtomic(resultFiles.validationChecklist, validationChecklist),
-    writeJsonFileAtomic(
-      path.join(resultRoot, 'result_manifest.json'),
-      manifest,
-    ),
     openQuestions && resultFiles.openQuestions
       ? writeJsonFileAtomic(resultFiles.openQuestions, openQuestions)
       : rm(openQuestionsPath, { force: true }),
   ]);
+  await writeJsonFileAtomic(manifestPath, manifest);
 
   return {
     resultRoot,
-    manifestPath: path.join(resultRoot, 'result_manifest.json'),
+    manifestPath,
     manifest,
   };
 }

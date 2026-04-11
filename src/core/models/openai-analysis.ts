@@ -1,3 +1,8 @@
+/**
+ * OpenAI Agents-backed analysis model executor for deps-workbench.
+ *
+ * @see https://openai.github.io/openai-agents-js/
+ */
 import { Agent, run } from '@openai/agents';
 
 import {
@@ -8,17 +13,20 @@ import {
 import type { StructuralAssessment } from '../runtime/eligibility';
 import type { LoadedPrepBundle } from '../runtime/intake';
 
+/** Structured input handed to the analysis model executor. */
 export type AnalysisModelInput = {
   prepBundle: LoadedPrepBundle;
   routingDecision: RoutingDecision;
   structuralAssessment: StructuralAssessment;
 };
 
+/** Analysis executor contract used by the runtime. */
 export type AnalysisModelExecutor = (input: AnalysisModelInput) => Promise<{
   synthesis: AnalysisSynthesis;
   modelUsed: string;
 }>;
 
+/** Schema-valid prompt example used to pin the model output shape. */
 export const analysisPromptExample = analysisSynthesisSchema.parse({
   executiveBrief: 'short markdown-safe summary string',
   semanticOutcome: 'review_required',
@@ -92,6 +100,12 @@ export const analysisPromptExample = analysisSynthesisSchema.parse({
   promotionConfidence: 0.5,
 });
 
+/**
+ * Builds the instruction prompt and prep-bundle summary for OpenAI synthesis.
+ *
+ * @param input - Structured runtime input, routing decision, and prep bundle.
+ * @returns Prompt text that instructs the model to return strict JSON only.
+ */
 export function buildPrompt(input: AnalysisModelInput): string {
   const payload = {
     mode: input.prepBundle.manifest.mode,
@@ -133,11 +147,15 @@ function mapReasoningEffort(
   return 'low';
 }
 
+/**
+ * Executes OpenAI Agents synthesis against the prepared bundle and routing decision.
+ *
+ * @param input - Prepared bundle, routing decision, and structural assessment.
+ * @returns Structured synthesis and the model identifier that produced it.
+ */
 export const runOpenAIAnalysis: AnalysisModelExecutor = async (input) => {
   if (!process.env.OPENAI_API_KEY) {
-    throw new Error(
-      'OPENAI_API_KEY is required for deps-workbench analyze in Phase 04',
-    );
+    throw new Error('OPENAI_API_KEY is required for deps-workbench analyze');
   }
 
   const agent = new Agent({

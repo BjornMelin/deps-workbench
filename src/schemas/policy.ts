@@ -51,7 +51,7 @@ export const policySchema = z
           0,
         );
 
-        if (totalWeight !== 100) {
+        if (Math.abs(totalWeight - 100) > 1e-6) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ['weights'],
