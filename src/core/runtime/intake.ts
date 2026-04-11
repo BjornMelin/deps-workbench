@@ -1,3 +1,4 @@
+import { realpath } from 'node:fs/promises';
 import path from 'node:path';
 import type { ZodType } from 'zod';
 import {
@@ -21,8 +22,8 @@ import {
 import { readJsonFile } from '../storage/json';
 import {
   assertPathWithinBase,
+  resolvePrepArtifactRoot,
   resolveRepoRoot,
-  resolveRunDirectory,
 } from '../storage/paths';
 
 /** Validated prep bundle loaded from one analyzed run. */
@@ -51,10 +52,10 @@ export async function loadPrepBundleFromRunId(
   runId: string,
 ): Promise<LoadedPrepBundle> {
   const resolvedRepoRoot = resolveRepoRoot(repoRoot);
-  const runDirectory = resolveRunDirectory(resolvedRepoRoot, runId);
-  const manifestPath = path.join(runDirectory, 'prep', 'manifest.json');
+  const prepRoot = resolvePrepArtifactRoot(resolvedRepoRoot, runId);
+  const manifestPath = path.join(prepRoot, 'manifest.json');
 
-  return loadPrepBundleFromManifest(manifestPath, runDirectory);
+  return loadPrepBundleFromManifest(manifestPath, resolvedRepoRoot, runId);
 }
 
 async function readPrepArtifact<T>(
@@ -62,45 +63,82 @@ async function readPrepArtifact<T>(
   artifactPath: string,
   schema: ZodType<T>,
 ): Promise<T> {
-  return readJsonFile(assertPathWithinBase(artifactRoot, artifactPath), schema);
+  const validatedArtifactPath = await resolveRealPathWithinBase(
+    artifactRoot,
+    artifactPath,
+  );
+
+  return readJsonFile(validatedArtifactPath, schema);
+}
+
+async function resolveRealPathWithinBase(
+  baseDir: string,
+  candidatePath: string,
+): Promise<string> {
+  const resolvedBaseDir = path.resolve(baseDir);
+  const resolvedCandidatePath = assertPathWithinBase(baseDir, candidatePath);
+  const [realBaseDir, realCandidatePath] = await Promise.all([
+    realpath(resolvedBaseDir),
+    realpath(resolvedCandidatePath),
+  ]);
+  const relativePath = path.relative(realBaseDir, realCandidatePath);
+
+  if (
+    relativePath === '..' ||
+    relativePath.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativePath)
+  ) {
+    throw new Error(
+      `Path escapes base directory: ${realCandidatePath} is outside ${realBaseDir}`,
+    );
+  }
+
+  return realCandidatePath;
 }
 
 /**
  * Loads a prep bundle from an existing manifest path after validating run-bound paths.
  *
  * @param manifestPath - Path to the prep manifest JSON file.
- * @param runDirectory - Canonical run directory used to validate manifest and artifact paths.
+ * @param repoRoot - Repository root used to derive the canonical prep bundle location.
+ * @param runId - Prep run identifier expected by the canonical manifest location.
  * @returns Loaded and schema-validated prep bundle.
- * @throws When the manifest path or manifest identity does not match the requested run.
+ * @throws Error - When the manifest path or manifest identity does not match the requested run.
  */
 export async function loadPrepBundleFromManifest(
   manifestPath: string,
-  runDirectory: string,
+  repoRoot: string,
+  runId: string,
 ): Promise<LoadedPrepBundle> {
-  const resolvedManifestPath = path.resolve(manifestPath);
-  const expectedManifestPath = path.join(runDirectory, 'prep', 'manifest.json');
+  const expectedPrepRoot = resolvePrepArtifactRoot(repoRoot, runId);
+  const expectedManifestPath = path.join(expectedPrepRoot, 'manifest.json');
+  const [resolvedManifestPath, expectedRealManifestPath] = await Promise.all([
+    resolveRealPathWithinBase(expectedPrepRoot, manifestPath),
+    resolveRealPathWithinBase(expectedPrepRoot, expectedManifestPath),
+  ]);
 
-  if (resolvedManifestPath !== path.resolve(expectedManifestPath)) {
+  if (resolvedManifestPath !== expectedRealManifestPath) {
     throw new Error(
-      `prep manifest path mismatch: expected ${expectedManifestPath}, got ${resolvedManifestPath}`,
+      `prep manifest path mismatch: expected ${expectedRealManifestPath}, got ${resolvedManifestPath}`,
     );
   }
 
-  const manifest = await readJsonFile(manifestPath, prepManifestSchema);
-  const expectedRepoRoot = path.resolve(runDirectory, '..', '..', '..');
-  const expectedRunId = path.basename(runDirectory);
+  const manifest = await readJsonFile(resolvedManifestPath, prepManifestSchema);
+  const expectedRepoRoot = resolveRepoRoot(repoRoot);
 
   if (
-    path.resolve(manifest.repoRoot) !== expectedRepoRoot ||
-    manifest.runId !== expectedRunId
+    resolveRepoRoot(manifest.repoRoot) !== expectedRepoRoot ||
+    manifest.runId !== runId
   ) {
     throw new Error(
-      `prep manifest identity mismatch: expected ${expectedRepoRoot}/${expectedRunId}, got ${path.resolve(manifest.repoRoot)}/${manifest.runId}`,
+      `prep manifest identity mismatch: expected ${expectedRepoRoot}/${runId}, got ${resolveRepoRoot(manifest.repoRoot)}/${manifest.runId}`,
     );
   }
 
-  const prepRoot = path.join(runDirectory, 'prep');
-  const artifactRoot = assertPathWithinBase(prepRoot, manifest.artifactRoot);
+  const artifactRoot = await resolveRealPathWithinBase(
+    expectedPrepRoot,
+    manifest.artifactRoot,
+  );
   const [meta, docs, releases, sourcePaths, diff, usage, signals] =
     await Promise.all([
       readPrepArtifact(
@@ -141,7 +179,7 @@ export async function loadPrepBundleFromManifest(
     ]);
 
   return {
-    runDirectory,
+    runDirectory: path.dirname(expectedPrepRoot),
     manifestPath: resolvedManifestPath,
     manifest,
     meta,

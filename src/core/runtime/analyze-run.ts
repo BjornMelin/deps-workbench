@@ -39,6 +39,8 @@ function blockedSynthesis(input: {
   claims: AnalysisSynthesis['claims'];
   summary: string;
   topRiskSignals: string[];
+  validationDescription?: string;
+  validationRationale?: string;
 }): AnalysisSynthesis {
   return analysisSynthesisSchema.parse({
     executiveBrief: input.summary,
@@ -51,8 +53,11 @@ function blockedSynthesis(input: {
       {
         id: 'refresh_missing_evidence',
         description:
+          input.validationDescription ??
           'Refresh the missing prep evidence before re-running analyze',
-        rationale: 'Structural eligibility checks blocked synthesis.',
+        rationale:
+          input.validationRationale ??
+          'Structural eligibility checks blocked synthesis.',
         required: true,
         evidenceRefs: [],
       },
@@ -113,6 +118,62 @@ function didEscalationResolveUncertainty(input: {
   );
 }
 
+function renderModelExecutorFailureMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.length > 200 ? `${message.slice(0, 197)}...` : message;
+}
+
+async function writeBlockedModelFailureResult(input: {
+  prepBundle: Awaited<ReturnType<typeof loadPrepBundleFromRunId>>;
+  routingDecision: ReturnType<typeof buildRoutingDecision>;
+  recovery: ResultManifest['recovery'];
+  structuralAssessment: ReturnType<typeof evaluateStructuralEligibility>;
+  generatedAt: string;
+  error: unknown;
+}): Promise<AnalyzeRunResult> {
+  const failureMessage = renderModelExecutorFailureMessage(input.error);
+  const synthesis = blockedSynthesis({
+    claims: [
+      {
+        id: 'model_synthesis_failed',
+        package:
+          input.structuralAssessment.findings[0]?.package ??
+          input.prepBundle.manifest.request.packages[0] ??
+          'analysis',
+        statement:
+          'model synthesis failed before a structured analysis result was produced',
+        confidence: 0.1,
+        bucket: 'UNVERIFIED',
+        rationale: `Model executor failed with: ${failureMessage}`,
+        evidenceRefs: [
+          {
+            artifactFamily: 'meta',
+            locator: 'meta:model_executor_failure',
+          },
+        ],
+      },
+    ],
+    summary: `Analysis blocked during synthesis: ${failureMessage}`,
+    topRiskSignals: input.structuralAssessment.topRiskSignals,
+    validationDescription:
+      'Inspect the synthesis failure and rerun analyze after the runtime issue is fixed',
+    validationRationale:
+      'The model executor failed before producing structured output.',
+  });
+
+  return writeResultBundle({
+    prepBundle: input.prepBundle,
+    synthesis,
+    outcomeClass: 'blocked',
+    primaryAction: 'stop_blocked',
+    routingDecision: input.routingDecision,
+    recovery: input.recovery,
+    modelUsed: input.routingDecision.selectedModel,
+    generatedAt: input.generatedAt,
+    structuralAssessment: input.structuralAssessment,
+  });
+}
+
 /**
  * Loads a prepared bundle, synthesizes analysis, and writes the result bundle.
  *
@@ -145,6 +206,7 @@ export async function analyzePreparedRun(
     structuralAssessment.findings[0]?.package ??
     prepBundle.manifest.request.packages[0] ??
     'analysis';
+  type ModelExecutionResult = Awaited<ReturnType<typeof modelExecutor>>;
 
   if (!structuralAssessment.canSynthesize) {
     const synthesis = blockedSynthesis({
@@ -188,11 +250,24 @@ export async function analyzePreparedRun(
   }
 
   let activeRoutingDecision = routingDecision;
-  let synthesisResult = await modelExecutor({
-    prepBundle,
-    routingDecision: activeRoutingDecision,
-    structuralAssessment,
-  });
+  let synthesisResult: ModelExecutionResult;
+
+  try {
+    synthesisResult = await modelExecutor({
+      prepBundle,
+      routingDecision: activeRoutingDecision,
+      structuralAssessment,
+    });
+  } catch (error) {
+    return writeBlockedModelFailureResult({
+      prepBundle,
+      routingDecision: activeRoutingDecision,
+      recovery,
+      structuralAssessment,
+      generatedAt: now().toISOString(),
+      error,
+    });
+  }
 
   if (
     shouldAttemptEscalationRecovery({
@@ -222,11 +297,22 @@ export async function analyzePreparedRun(
         toTier: 'full',
       }),
     );
-    synthesisResult = await modelExecutor({
-      prepBundle,
-      routingDecision: escalatedRoutingDecision,
-      structuralAssessment,
-    });
+    try {
+      synthesisResult = await modelExecutor({
+        prepBundle,
+        routingDecision: escalatedRoutingDecision,
+        structuralAssessment,
+      });
+    } catch (error) {
+      return writeBlockedModelFailureResult({
+        prepBundle,
+        routingDecision: escalatedRoutingDecision,
+        recovery,
+        structuralAssessment,
+        generatedAt: now().toISOString(),
+        error,
+      });
+    }
     const outcomeAfterEscalation = finalizeOutcomeClass({
       structuralReady: structuralAssessment.readyForImplementation,
       structuralBlocked: false,

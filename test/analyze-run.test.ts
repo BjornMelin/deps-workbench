@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { cp, mkdtemp, rm } from 'node:fs/promises';
+import { cp, mkdtemp, rm, symlink } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { analysisPromptExample } from '../src/core/models/openai-analysis';
@@ -11,10 +11,7 @@ import {
 } from '../src/core/runtime/intake';
 import { buildRoutingDecision } from '../src/core/runtime/routing';
 import { writeJsonFileAtomic } from '../src/core/storage/json';
-import {
-  resolvePrepArtifactRoot,
-  resolveRunDirectory,
-} from '../src/core/storage/paths';
+import { resolvePrepArtifactRoot } from '../src/core/storage/paths';
 import {
   analysisSynthesisSchema,
   decisionReportSchema,
@@ -610,6 +607,47 @@ describe('analyzePreparedRun', () => {
     }
   });
 
+  test('writes a blocked result bundle when the model executor throws', async () => {
+    const tempRepo = await makeTempRepo();
+    let modelCalls = 0;
+
+    try {
+      const runId = 'run_executor_failure';
+      await writePrepFixture(tempRepo, runId, {
+        mode: 'implementation',
+        targetVersion: '4.4.0',
+      });
+
+      const result = await analyzePreparedRun(
+        { repoRoot: tempRepo, runId },
+        {
+          now: () => new Date('2026-04-11T08:15:45.000Z'),
+          modelExecutor: async () => {
+            modelCalls += 1;
+            throw new Error('structured output parsing failed');
+          },
+        },
+      );
+
+      expect(modelCalls).toBe(1);
+      expect(result.manifest.outcomeClass).toBe('blocked');
+      expect(result.manifest.primaryAction).toBe('stop_blocked');
+      expect(result.manifest.modelUsed).toBe(
+        result.manifest.routingDecision.selectedModel,
+      );
+      expect(
+        decisionReportSchema.parse(
+          JSON.parse(
+            await Bun.file(result.manifest.resultFiles.decisionReport).text(),
+          ) as unknown,
+        ).semanticOutcome,
+      ).toBe('blocked');
+      expect(await Bun.file(result.manifestPath).exists()).toBe(true);
+    } finally {
+      await rm(tempRepo, { recursive: true, force: true });
+    }
+  });
+
   test('rejects prep bundles whose artifact files escape the run boundary', async () => {
     const tempRepo = await makeTempRepo();
     const runId = 'run_escape';
@@ -662,9 +700,52 @@ describe('analyzePreparedRun', () => {
             'prep',
             'manifest.json',
           ),
-          resolveRunDirectory(tempRepo, runId),
+          tempRepo,
+          runId,
         ),
-      ).rejects.toThrow('prep manifest path mismatch');
+      ).rejects.toThrow(/outside/);
+    } finally {
+      await rm(tempRepo, { recursive: true, force: true });
+    }
+  });
+
+  test('rejects symlinked artifact paths that escape the run boundary', async () => {
+    const tempRepo = await makeTempRepo();
+    const runId = 'run_symlink_escape';
+
+    try {
+      await writePrepFixture(tempRepo, runId, {
+        mode: 'implementation',
+        targetVersion: '4.4.0',
+      });
+
+      const manifestPath = path.join(
+        resolvePrepArtifactRoot(tempRepo, runId),
+        'manifest.json',
+      );
+      const outsideMetaPath = path.join(tempRepo, '..', 'outside-meta.json');
+      const symlinkMetaPath = path.join(
+        resolvePrepArtifactRoot(tempRepo, runId),
+        'meta-link.json',
+      );
+      const manifest = prepManifestSchema.parse(
+        JSON.parse(await Bun.file(manifestPath).text()) as unknown,
+      );
+
+      await writeJsonFileAtomic(outsideMetaPath, { outside: true });
+      await symlink(outsideMetaPath, symlinkMetaPath);
+
+      await writeJsonFileAtomic(manifestPath, {
+        ...manifest,
+        artifactFiles: {
+          ...manifest.artifactFiles,
+          meta: 'meta-link.json',
+        },
+      });
+
+      await expect(loadPrepBundleFromRunId(tempRepo, runId)).rejects.toThrow(
+        /outside/,
+      );
     } finally {
       await rm(tempRepo, { recursive: true, force: true });
     }
@@ -672,7 +753,7 @@ describe('analyzePreparedRun', () => {
 
   test('rejects manifests whose identity does not match the requested run', async () => {
     const tempRepo = await makeTempRepo();
-    const runId = 'run_manifest_identity_guard';
+    const runId = 'teamA/run_123';
 
     try {
       await writePrepFixture(tempRepo, runId, {
@@ -690,7 +771,7 @@ describe('analyzePreparedRun', () => {
       await writeJsonFileAtomic(manifestPath, {
         ...manifest,
         repoRoot: path.join(tempRepo, '..', 'tampered-root'),
-        runId: 'other-run',
+        runId: 'teamA/other_run',
       });
 
       await expect(loadPrepBundleFromRunId(tempRepo, runId)).rejects.toThrow(
