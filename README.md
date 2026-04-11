@@ -29,7 +29,7 @@ that yields typed artifacts, typed results, and action-oriented manifests.
 - [done] Phase 01 bootstrap foundation is verified complete
 - [done] Phase 02 typed contracts, storage, and policy loading
 - [done] Phase 03 deterministic prep collectors and prep bundles
-- [todo] Phase 04 analysis runtime and model routing
+- [done] Phase 04 analysis runtime, routing, and canonical result bundles
 - [todo] Phase 05 reporting, run, and resume operator flows
 - [todo] Phase 06 bundled-skills ownership, release automation, migration, and
   release readiness
@@ -48,7 +48,7 @@ The canonical v1 design is:
 - JSON-first prep bundles and result bundles
 - Zod as the source of truth for checked-in contracts
 - OpenAI Agents JS SDK for the analysis runtime
-- conservative model routing with bounded recovery
+- conservative model routing with implementation-only bounded recovery
 - hidden `.local/` runtime state for runs, cache, and local overrides
 - top-level `skills/` as the future source of truth for package-coupled skills
 
@@ -73,14 +73,17 @@ repo-documented wrappers around the standard `skills` CLI.
 bun install
 bun run biome:write
 bun run biome:ci
+bun run dev prepare --request "upgrade react to latest" --package react
+bun run dev analyze --run-id <run-id>
 bun run dev
 bun run test
 bun run typecheck
 bun run check
 ```
 
-The CLI now has a real `prepare` command; `analyze`, `report`, `run`, and `resume` remain phased placeholders. The
-execution authority for all real work is the planning index:
+The CLI now has real `prepare` and `analyze` commands. `report`, `run`, and
+`resume` remain phased placeholders. The execution authority for all real work
+is the planning index:
 [docs/plan/README.md](docs/plan/README.md).
 
 ## Docs and authority

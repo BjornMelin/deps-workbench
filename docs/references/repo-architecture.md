@@ -68,6 +68,10 @@ including:
 - `validation_checklist.json`
 - optional `open_questions.json`
 
+`decision_report.json` carries the synthesis `semanticOutcome`, and blocked
+runs must preserve `semanticOutcome: blocked` there instead of collapsing to a
+degraded/reference-only fallback.
+
 ## Outcome model
 
 The analysis runtime should classify outcomes explicitly:
@@ -93,7 +97,24 @@ The runtime uses conservative model routing:
 - `gpt-5.4-mini` for standard synthesis
 - `gpt-5.4` only when risk signals justify escalation
 
+The OpenAI analysis lane should request schema-typed output from the Agents SDK
+so synthesis results arrive as contract-validated structured data instead of
+free-form JSON text that must be reparsed manually.
+
 ## Recovery model
 
 Allow one bounded automatic recovery hop only, from a strict allowlist.
 Anything more becomes opaque agent churn and is out of scope.
+
+Automatic escalation recovery is limited to `implementation` mode. `triage` and
+`research` runs keep the originally routed tier even when the synthesis remains
+review-oriented.
+
+For `implementation` runs, automatic escalation is still gated by
+`recoveryEscalationMin`; a low-risk review-required result should stay on its
+original tier instead of silently rerunning on `full`.
+
+Recovery state must distinguish between "rerun happened" and "uncertainty was
+resolved". Record escalation as succeeded only when the rerun upgrades the
+final outcome to `ready_to_implement`; otherwise preserve the retry history
+without claiming automatic recovery.
