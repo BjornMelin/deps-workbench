@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   buildDiffPackageEntry,
+  collectDiffArtifact,
   diffResultCollected,
   diffResultError,
 } from '../src/core/collectors/diff';
@@ -59,6 +60,25 @@ afterEach(async () => {
 });
 
 describe('collectDiffArtifact', () => {
+  test('skips identical source paths through the full collector', async () => {
+    const tempRoot = await makeTempRoot();
+    const repoRoot = path.join(tempRoot, 'repo');
+    const sourcePath = path.join(repoRoot, 'shared');
+
+    await mkdir(sourcePath, { recursive: true });
+
+    const artifact = await collectDiffArtifact({
+      repoRoot,
+      generatedAt: '2026-04-10T12:00:00.000Z',
+      sourcePaths: makeSourcePathsArtifact(sourcePath, sourcePath),
+    });
+
+    expect(artifact.family).toBe('diff');
+    expect(artifact.packages).toHaveLength(1);
+    expect(artifact.packages[0]?.package).toBe('zod');
+    expect(artifact.packages[0]?.status).toBe('skipped');
+  });
+
   test('treats exit code 1 with diff output as collected evidence', async () => {
     const tempRoot = await makeTempRoot();
     const currentPath = path.join(tempRoot, 'current');

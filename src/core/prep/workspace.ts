@@ -107,7 +107,8 @@ function readDependencySpec(
 export async function discoverPackageJsonFiles(
   repoRoot: string,
 ): Promise<DiscoveredPackageJsonFiles> {
-  const rootPackageJsonPath = path.join(repoRoot, 'package.json');
+  const repoRootResolved = path.resolve(repoRoot);
+  const rootPackageJsonPath = path.join(repoRootResolved, 'package.json');
   const rootManifest = await readPackageJson(rootPackageJsonPath);
   const patterns = extractWorkspacePatterns(rootManifest);
   const files = new Set<string>([rootPackageJsonPath]);
@@ -116,8 +117,8 @@ export async function discoverPackageJsonFiles(
     const { glob: workspaceGlob, include } = parseWorkspacePattern(pattern);
     const glob = new Bun.Glob(workspaceGlob);
 
-    for await (const relativeMatch of glob.scan({ cwd: repoRoot })) {
-      const manifestPath = path.resolve(repoRoot, relativeMatch);
+    for await (const relativeMatch of glob.scan({ cwd: repoRootResolved })) {
+      const manifestPath = path.resolve(repoRootResolved, relativeMatch);
 
       if (include) {
         files.add(manifestPath);
@@ -147,7 +148,7 @@ export async function scanRepoForRequestedPackages(
   const { rootManifest, packageJsonFiles } =
     await discoverPackageJsonFiles(repoRoot);
   const lockfilePresent = await Bun.file(
-    path.join(repoRoot, 'bun.lock'),
+    path.join(path.resolve(repoRoot), 'bun.lock'),
   ).exists();
   const requestedPackages = Array.from(
     new Set(

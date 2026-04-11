@@ -18,6 +18,12 @@ function diffProvenance(notes: string[] = []): ArtifactProvenance {
   };
 }
 
+/**
+ * Returns whether a git diff result produced collected output.
+ *
+ * @param result - Command result from `git diff --no-index`.
+ * @returns `true` when the diff completed successfully or returned a non-empty diff.
+ */
 export function diffResultCollected(result: CommandResult): boolean {
   if (result.exitCode === 0) {
     return true;
@@ -26,6 +32,13 @@ export function diffResultCollected(result: CommandResult): boolean {
   return result.exitCode === 1 && result.stdout.length > 0;
 }
 
+/**
+ * Returns the error to record for a diff result that was not collected.
+ *
+ * @param result - Command result from `git diff --no-index`.
+ * @param collected - Whether the diff output was collected.
+ * @returns A human-readable diff error, or `undefined` when the output was collected.
+ */
 export function diffResultError(
   result: CommandResult,
   collected: boolean,
@@ -41,6 +54,12 @@ export function diffResultError(
   return result.stderr || 'git diff --no-index failed';
 }
 
+/**
+ * Builds a normalized diff package entry from a source path pair and diff result.
+ *
+ * @param input - Source path entry and command result to convert into a diff package entry.
+ * @returns A diff package entry describing the collected or degraded diff state.
+ */
 export function buildDiffPackageEntry(input: {
   entry: SourcePathsArtifact['packages'][number];
   result: CommandResult;

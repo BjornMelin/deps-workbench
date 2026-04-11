@@ -7,7 +7,8 @@ cd "$REPO_ROOT" || exit 1
 STASH_REF=""
 
 restore_unstaged_changes() {
-  if [ -n "$STASH_REF" ]; then
+  if [ -n "$STASH_REF" ] &&
+    git rev-parse -q --verify "$STASH_REF" >/dev/null 2>&1; then
     git stash apply --quiet "$STASH_REF" >/dev/null || {
       echo "Failed to restore unstaged changes after pre-commit" >&2
       exit 1
@@ -16,6 +17,7 @@ restore_unstaged_changes() {
       echo "Failed to drop temporary pre-commit stash" >&2
       exit 1
     }
+    STASH_REF=""
   fi
 }
 
@@ -25,19 +27,14 @@ stash_unstaged_changes() {
     return
   fi
 
-  before_ref="$(git rev-parse -q --verify refs/stash 2>/dev/null || true)"
   git stash push --keep-index --include-untracked --quiet --message "deps-workbench-pre-commit" >/dev/null
-  after_ref="$(git rev-parse -q --verify refs/stash 2>/dev/null || true)"
-
-  if [ "$before_ref" != "$after_ref" ]; then
-    STASH_REF="$after_ref"
-  fi
+  STASH_REF="stash@{0}"
 }
 
 trap 'status=$?; restore_unstaged_changes; exit $status' EXIT HUP INT TERM
 
-bun run hook:pre-commit-format
 stash_unstaged_changes
+bun run hook:pre-commit-format
 
 bun run typecheck
 bun run test
