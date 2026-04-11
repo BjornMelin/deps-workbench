@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Zod enums for typed string literals in manifests, artifacts, and policy.
+ */
+
 import { z } from 'zod';
 
 export const modeSchema = z.enum(['triage', 'research', 'implementation']);
@@ -42,3 +46,33 @@ export const artifactFamilySchema = z.enum([
   'usage',
   'signals',
 ]);
+
+export const sourceFamilySchema = z.enum([
+  'bun',
+  'opensrc',
+  'ctx7',
+  'gh',
+  'filesystem',
+  'git',
+]);
+
+export const artifactFreshnessSchema = z.enum(['fresh', 'reused', 'skipped']);
+
+export const collectionStatusSchema = z.enum([
+  'collected',
+  'degraded',
+  'skipped',
+]);
+
+export const toolRequirementSchema = z.enum(['required', 'optional']);
+
+export const dependencyFieldSchema = z.enum([
+  'dependencies',
+  'devDependencies',
+  'peerDependencies',
+  'optionalDependencies',
+  'resolutions',
+  'overrides',
+]);
+
+export const signalSeveritySchema = z.enum(['info', 'warn', 'error']);
