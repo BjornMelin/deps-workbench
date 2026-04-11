@@ -23,9 +23,11 @@ type PackageJsonRecord = {
   devDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
   optionalDependencies?: Record<string, string>;
-  resolutions?: Record<string, string>;
-  overrides?: Record<string, string>;
+  resolutions?: Record<string, string | Record<string, unknown>>;
+  overrides?: Record<string, string | Record<string, unknown>>;
 };
+
+type DependencyFieldRecord = Record<string, string | Record<string, unknown>>;
 
 function normalizeWorkspacePattern(pattern: string): string {
   return pattern.endsWith('package.json')
@@ -59,15 +61,33 @@ export type RepoPackageScan = {
   packages: DependencyMetaEntry[];
 };
 
+type DiscoveredPackageJsonFiles = {
+  rootManifest: PackageJsonRecord;
+  packageJsonFiles: string[];
+};
+
+function readDependencySpec(
+  record: DependencyFieldRecord | undefined,
+  requestedPackage: string,
+): string | undefined {
+  if (!record) {
+    return undefined;
+  }
+
+  const spec = record[requestedPackage];
+
+  return typeof spec === 'string' ? spec : undefined;
+}
+
 /**
  * Resolves root `package.json` plus workspace globs to a sorted list of manifest paths.
  *
  * @param repoRoot - Repository root containing the workspace manifests.
- * @returns Sorted absolute manifest paths for the root package and all discovered workspaces.
+ * @returns Root manifest plus sorted absolute manifest paths for the root package and all discovered workspaces.
  */
 export async function discoverPackageJsonFiles(
   repoRoot: string,
-): Promise<string[]> {
+): Promise<DiscoveredPackageJsonFiles> {
   const rootPackageJsonPath = path.join(repoRoot, 'package.json');
   const rootManifest = await readPackageJson(rootPackageJsonPath);
   const patterns = extractWorkspacePatterns(rootManifest);
@@ -81,7 +101,10 @@ export async function discoverPackageJsonFiles(
     }
   }
 
-  return Array.from(files).sort();
+  return {
+    rootManifest,
+    packageJsonFiles: Array.from(files).sort(),
+  };
 }
 
 /**
@@ -95,10 +118,8 @@ export async function scanRepoForRequestedPackages(
   repoRoot: string,
   packages: string[],
 ): Promise<RepoPackageScan> {
-  const packageJsonFiles = await discoverPackageJsonFiles(repoRoot);
-  const rootManifest = await readPackageJson(
-    path.join(repoRoot, 'package.json'),
-  );
+  const { rootManifest, packageJsonFiles } =
+    await discoverPackageJsonFiles(repoRoot);
   const lockfilePresent = await Bun.file(
     path.join(repoRoot, 'bun.lock'),
   ).exists();
@@ -118,14 +139,10 @@ export async function scanRepoForRequestedPackages(
     const manifest = await readPackageJson(packageJsonFile);
 
     for (const field of DEPENDENCY_FIELDS) {
-      const record = manifest[field] as Record<string, string> | undefined;
-
-      if (!record) {
-        continue;
-      }
+      const record = manifest[field] as DependencyFieldRecord | undefined;
 
       for (const requestedPackage of requestedPackages) {
-        const spec = record[requestedPackage];
+        const spec = readDependencySpec(record, requestedPackage);
 
         if (spec === undefined) {
           continue;
@@ -145,7 +162,7 @@ export async function scanRepoForRequestedPackages(
       root: repoRoot,
       packageManager: rootManifest.packageManager,
       hasWorkspaces: extractWorkspacePatterns(rootManifest).length > 0,
-      workspaceCount: packageJsonFiles.length,
+      workspaceCount: Math.max(0, packageJsonFiles.length - 1),
       packageJsonCount: packageJsonFiles.length,
       lockfilePresent,
     },

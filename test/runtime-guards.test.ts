@@ -86,4 +86,68 @@ describe('scanRepoForRequestedPackages', () => {
     expect(result.packages[0]?.package).toBe('zod');
     expect(result.packages[0]?.occurrences.length).toBeGreaterThan(0);
   });
+
+  test('does not count the root manifest as a workspace', async () => {
+    const repoRoot = await mkdtemp(
+      path.join(os.tmpdir(), 'deps-workbench-single-package-'),
+    );
+
+    try {
+      await Bun.write(
+        path.join(repoRoot, 'package.json'),
+        JSON.stringify(
+          {
+            name: 'single-package-repo',
+            packageManager: 'bun@1.3.12',
+            dependencies: {
+              zod: '^4.3.6',
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const result = await scanRepoForRequestedPackages(repoRoot, ['zod']);
+
+      expect(result.repo.hasWorkspaces).toBe(false);
+      expect(result.repo.workspaceCount).toBe(0);
+      expect(result.repo.packageJsonCount).toBe(1);
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('ignores non-string override entries when scanning dependencies', async () => {
+    const repoRoot = await mkdtemp(
+      path.join(os.tmpdir(), 'deps-workbench-workspace-'),
+    );
+
+    try {
+      await Bun.write(
+        path.join(repoRoot, 'package.json'),
+        JSON.stringify(
+          {
+            name: 'workspace-root',
+            packageManager: 'bun@1.3.12',
+            overrides: {
+              react: {
+                scheduler: '1.0.0',
+              },
+            },
+          },
+          null,
+          2,
+        ),
+      );
+
+      const result = await scanRepoForRequestedPackages(repoRoot, ['react']);
+
+      expect(result.packages).toHaveLength(1);
+      expect(result.packages[0]?.occurrences).toEqual([]);
+      expect(result.packages[0]?.declaredVersions).toEqual([]);
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
 });
