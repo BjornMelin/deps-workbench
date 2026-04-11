@@ -69,6 +69,7 @@ async function readPrepArtifact<T>(
  * Loads a prep bundle from an existing manifest path after validating run-bound paths.
  *
  * @param manifestPath - Path to the prep manifest JSON file.
+ * @param runDirectory - Canonical run directory used to validate manifest and artifact paths.
  * @returns Loaded and schema-validated prep bundle.
  */
 export async function loadPrepBundleFromManifest(

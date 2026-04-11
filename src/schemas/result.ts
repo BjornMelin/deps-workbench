@@ -20,8 +20,11 @@ import {
   sourceFamilySchema,
 } from './enums';
 
+/** Normalized confidence score between 0 and 1. */
 export const confidenceSchema = z.number().min(0).max(1);
+/** Semantic outcome classification used in result payloads. */
 export const semanticOutcomeSchema = outcomeClassSchema;
+/** Routing factor categories used to compute the weighted escalation score. */
 export const routingCategorySchema = z.enum([
   'upgradeSeverity',
   'evidenceConflict',
@@ -31,7 +34,7 @@ export const routingCategorySchema = z.enum([
   'uncertainty',
   'coupling',
 ]);
-
+/** Evidence locator attached to claims, checklist items, and open questions. */
 export const evidenceReferenceSchema = z
   .object({
     artifactFamily: artifactFamilySchema,
@@ -48,7 +51,7 @@ export const evidenceReferenceSchema = z
       });
     }
   });
-
+/** Single claim emitted in the machine-readable analysis result. */
 export const resultClaimSchema = z
   .object({
     id: nonEmptyStringSchema,
@@ -60,7 +63,7 @@ export const resultClaimSchema = z
     evidenceRefs: z.array(evidenceReferenceSchema).min(1),
   })
   .strict();
-
+/** Implementation task item derived from the synthesis output. */
 export const implementationChecklistItemSchema = z
   .object({
     id: nonEmptyStringSchema,
@@ -75,7 +78,7 @@ export const implementationChecklistItemSchema = z
     validationSteps: stringListSchema.default([]),
   })
   .strict();
-
+/** Validation task item derived from the synthesis output. */
 export const validationChecklistItemSchema = z
   .object({
     id: nonEmptyStringSchema,
@@ -87,7 +90,7 @@ export const validationChecklistItemSchema = z
     evidenceRefs: z.array(evidenceReferenceSchema).default([]),
   })
   .strict();
-
+/** One unresolved question that still needs operator judgment. */
 export const openQuestionSchema = z
   .object({
     id: nonEmptyStringSchema,
@@ -96,7 +99,7 @@ export const openQuestionSchema = z
     whyOpen: nonEmptyStringSchema,
   })
   .strict();
-
+/** High-level narrative and semantic summary for a result report. */
 export const decisionReportSchema = z
   .object({
     schemaVersion: z.literal('1'),
@@ -110,7 +113,7 @@ export const decisionReportSchema = z
     promotionConfidence: confidenceSchema.optional(),
   })
   .strict();
-
+/** Claim-to-evidence mapping written alongside the analysis result. */
 export const evidenceMapSchema = z
   .object({
     schemaVersion: z.literal('1'),
@@ -127,7 +130,7 @@ export const evidenceMapSchema = z
       .min(1),
   })
   .strict();
-
+/** Container schema for the implementation checklist array. */
 export const implementationChecklistSchema = z
   .object({
     schemaVersion: z.literal('1'),
@@ -135,7 +138,7 @@ export const implementationChecklistSchema = z
     items: z.array(implementationChecklistItemSchema),
   })
   .strict();
-
+/** Container schema for the validation checklist array. */
 export const validationChecklistSchema = z
   .object({
     schemaVersion: z.literal('1'),
@@ -143,7 +146,7 @@ export const validationChecklistSchema = z
     items: z.array(validationChecklistItemSchema).min(1),
   })
   .strict();
-
+/** Container schema for unresolved open questions. */
 export const openQuestionsSchema = z
   .object({
     schemaVersion: z.literal('1'),
@@ -151,7 +154,7 @@ export const openQuestionsSchema = z
     questions: z.array(openQuestionSchema),
   })
   .strict();
-
+/** Model synthesis payload returned by the analysis executor. */
 export const analysisSynthesisSchema = z
   .object({
     executiveBrief: nonEmptyStringSchema,
@@ -167,7 +170,7 @@ export const analysisSynthesisSchema = z
     promotionConfidence: confidenceSchema.optional(),
   })
   .strict();
-
+/** Weighted routing factor entry produced by routing heuristics. */
 export const routingScoreFactorSchema = z
   .object({
     category: routingCategorySchema,
@@ -176,7 +179,7 @@ export const routingScoreFactorSchema = z
     rationale: nonEmptyStringSchema,
   })
   .strict();
-
+/** Final routing decision including tier, model, thresholds, and factors. */
 export const routingDecisionSchema = z
   .object({
     selectedTier: modelTierSchema,
@@ -192,7 +195,7 @@ export const routingDecisionSchema = z
     factors: z.array(routingScoreFactorSchema).min(1),
   })
   .strict();
-
+/** Single bounded recovery record written after escalation attempts. */
 export const recoveryRecordSchema = z
   .object({
     action: recoveryActionSchema,
@@ -203,7 +206,7 @@ export const recoveryRecordSchema = z
     notes: stringListSchema.default([]),
   })
   .strict();
-
+/** Paths to the individual result artifact files for one run. */
 export const resultFilesSchema = z
   .object({
     executiveBrief: pathSchema,
@@ -214,7 +217,7 @@ export const resultFilesSchema = z
     openQuestions: pathSchema.optional(),
   })
   .strict();
-
+/** Lightweight manifest item used to surface an unverified result claim. */
 export const resultUnverifiedItemSchema = z
   .object({
     id: nonEmptyStringSchema,
@@ -222,7 +225,7 @@ export const resultUnverifiedItemSchema = z
     bucket: z.literal('UNVERIFIED'),
   })
   .strict();
-
+/** Top-level result manifest written after synthesis and recovery complete. */
 export const resultManifestSchema = z
   .object({
     schemaVersion: z.literal('1'),
@@ -273,23 +276,37 @@ export const resultManifestSchema = z
     }
   });
 
+/** Inferred type for evidence references used by result claims and checklists. */
 export type EvidenceReference = z.infer<typeof evidenceReferenceSchema>;
+/** Inferred type for a single result claim. */
 export type ResultClaim = z.infer<typeof resultClaimSchema>;
+/** Inferred type for an implementation checklist item. */
 export type ImplementationChecklistItem = z.infer<
   typeof implementationChecklistItemSchema
 >;
+/** Inferred type for a validation checklist item. */
 export type ValidationChecklistItem = z.infer<
   typeof validationChecklistItemSchema
 >;
+/** Inferred type for an unresolved open question. */
 export type OpenQuestion = z.infer<typeof openQuestionSchema>;
+/** Inferred type for the decision report payload. */
 export type DecisionReport = z.infer<typeof decisionReportSchema>;
+/** Inferred type for the evidence map payload. */
 export type EvidenceMap = z.infer<typeof evidenceMapSchema>;
+/** Inferred type for the implementation checklist container. */
 export type ImplementationChecklist = z.infer<
   typeof implementationChecklistSchema
 >;
+/** Inferred type for the validation checklist container. */
 export type ValidationChecklist = z.infer<typeof validationChecklistSchema>;
+/** Inferred type for the open questions container. */
 export type OpenQuestions = z.infer<typeof openQuestionsSchema>;
+/** Inferred type for the model synthesis payload. */
 export type AnalysisSynthesis = z.infer<typeof analysisSynthesisSchema>;
+/** Inferred type for the routing decision payload. */
 export type RoutingDecision = z.infer<typeof routingDecisionSchema>;
+/** Inferred type for the recovery record payload. */
 export type RecoveryRecord = z.infer<typeof recoveryRecordSchema>;
+/** Inferred type for the full result manifest payload. */
 export type ResultManifest = z.infer<typeof resultManifestSchema>;

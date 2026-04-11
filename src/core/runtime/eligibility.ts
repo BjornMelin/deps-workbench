@@ -27,16 +27,19 @@ export type StructuralAssessment = {
   topRiskSignals: string[];
 };
 
+function indexPackages<T extends { package: string }>(
+  packages: T[],
+): Map<string, T> {
+  return new Map(packages.map((entry) => [entry.package, entry]));
+}
+
 function hasCollectedDocsOrReleases(
-  prepBundle: LoadedPrepBundle,
+  docsByPackage: Map<string, { status: string }>,
+  releasesByPackage: Map<string, { status: string }>,
   packageName: string,
 ): boolean {
-  const docsEntry = prepBundle.docs.packages.find(
-    (entry) => entry.package === packageName,
-  );
-  const releasesEntry = prepBundle.releases.packages.find(
-    (entry) => entry.package === packageName,
-  );
+  const docsEntry = docsByPackage.get(packageName);
+  const releasesEntry = releasesByPackage.get(packageName);
 
   return (
     docsEntry?.status === 'collected' || releasesEntry?.status === 'collected'
@@ -88,13 +91,6 @@ function buildBundleFallbackClaim(detail: string): ResultClaim {
   };
 }
 
-function findPackageEntry<T extends { package: string }>(
-  packages: T[],
-  packageName: string,
-): T | undefined {
-  return packages.find((entry) => entry.package === packageName);
-}
-
 /**
  * Evaluates structural eligibility for synthesis based on prep bundle completeness.
  *
@@ -106,6 +102,12 @@ export function evaluateStructuralEligibility(
   prepBundle: LoadedPrepBundle,
   mode: Mode,
 ): StructuralAssessment {
+  const metaByPackage = indexPackages(prepBundle.meta.packages);
+  const docsByPackage = indexPackages(prepBundle.docs.packages);
+  const releasesByPackage = indexPackages(prepBundle.releases.packages);
+  const sourcePathsByPackage = indexPackages(prepBundle.sourcePaths.packages);
+  const diffByPackage = indexPackages(prepBundle.diff.packages);
+  const usageByPackage = indexPackages(prepBundle.usage.packages);
   const findings: StructuralFinding[] = [];
   const stopConditions: string[] = [];
   const fallbackClaims: ResultClaim[] = [];
@@ -117,13 +119,10 @@ export function evaluateStructuralEligibility(
       : null;
 
   for (const packageName of prepBundle.manifest.request.packages) {
-    const metaEntry = findPackageEntry(prepBundle.meta.packages, packageName);
-    const sourcePathsEntry = findPackageEntry(
-      prepBundle.sourcePaths.packages,
-      packageName,
-    );
-    const usageEntry = findPackageEntry(prepBundle.usage.packages, packageName);
-    const diffEntry = findPackageEntry(prepBundle.diff.packages, packageName);
+    const metaEntry = metaByPackage.get(packageName);
+    const sourcePathsEntry = sourcePathsByPackage.get(packageName);
+    const usageEntry = usageByPackage.get(packageName);
+    const diffEntry = diffByPackage.get(packageName);
 
     const blockers: string[] = [];
     const degradations: string[] = [];
@@ -140,7 +139,9 @@ export function evaluateStructuralEligibility(
       blockers.push('repo usage scan is missing');
     }
 
-    if (!hasCollectedDocsOrReleases(prepBundle, packageName)) {
+    if (
+      !hasCollectedDocsOrReleases(docsByPackage, releasesByPackage, packageName)
+    ) {
       blockers.push('authoritative docs or release metadata are missing');
     }
 
@@ -156,8 +157,13 @@ export function evaluateStructuralEligibility(
         blockers.push('target version or target source resolution is missing');
       }
 
-      if (diffEntry?.status === 'degraded') {
-        degradations.push(diffEntry.error ?? 'source diff is degraded');
+      if (diffEntry?.status !== undefined && diffEntry.status !== 'collected') {
+        degradations.push(
+          diffEntry.error ??
+            (diffEntry.status === 'skipped'
+              ? 'source diff was skipped'
+              : 'source diff is degraded'),
+        );
       }
     } else if (prepBundle.manifest.request.targetVersion === undefined) {
       degradations.push('target version is unspecified');

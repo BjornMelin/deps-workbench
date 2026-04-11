@@ -116,6 +116,7 @@ function didEscalationResolveUncertainty(input: {
 /**
  * Loads a prepared bundle, synthesizes analysis, and writes the result bundle.
  *
+ * @see https://openai.github.io/openai-agents-js/
  * @param options - Repository root and prep run id to analyze.
  * @param dependencies - Optional clock, policy loader, and model executor overrides.
  * @returns Parsed result bundle metadata after the analysis artifacts are written.

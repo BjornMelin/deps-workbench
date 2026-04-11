@@ -804,6 +804,46 @@ describe('analyzePreparedRun', () => {
     }
   });
 
+  test('treats skipped diffs as degraded implementation evidence', async () => {
+    const tempRepo = await makeTempRepo();
+    let modelCalls = 0;
+
+    try {
+      await writePrepFixture(tempRepo, 'run_skipped_diff', {
+        mode: 'implementation',
+        targetVersion: '4.4.0',
+        occurrenceCount: 1,
+        diffStatus: 'skipped',
+      });
+
+      const result = await analyzePreparedRun(
+        { repoRoot: tempRepo, runId: 'run_skipped_diff' },
+        {
+          now: () => new Date('2026-04-11T08:22:45.000Z'),
+          modelExecutor: async () => {
+            modelCalls += 1;
+            return {
+              synthesis: synthesisFixture({
+                semanticOutcome: 'ready_to_implement',
+                executiveBrief:
+                  'Skipped diff evidence should not be treated as implementation ready.',
+                summary:
+                  'The missing diff makes the run require a review pass.',
+              }),
+              modelUsed: 'gpt-5.4-mini',
+            };
+          },
+        },
+      );
+
+      expect(modelCalls).toBe(1);
+      expect(result.manifest.outcomeClass).toBe('review_required');
+      expect(result.manifest.primaryAction).toBe('review_key_claims');
+    } finally {
+      await rm(tempRepo, { recursive: true, force: true });
+    }
+  });
+
   test('marks escalation as skipped when the rerun does not resolve uncertainty', async () => {
     const tempRepo = await makeTempRepo();
     let modelCalls = 0;
