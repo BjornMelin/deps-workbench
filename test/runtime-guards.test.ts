@@ -221,4 +221,53 @@ describe('scanRepoForRequestedPackages', () => {
       await rm(repoRoot, { recursive: true, force: true });
     }
   });
+
+  test('respects negated workspace globs during manifest discovery', async () => {
+    const repoRoot = await mkdtemp(
+      path.join(os.tmpdir(), 'deps-workbench-negated-workspace-'),
+    );
+    const includedWorkspaceDir = path.join(repoRoot, 'packages', 'included');
+    const excludedWorkspaceDir = path.join(repoRoot, 'packages', 'excluded');
+
+    try {
+      await Bun.write(
+        path.join(repoRoot, 'package.json'),
+        JSON.stringify(
+          {
+            name: 'workspace-root',
+            packageManager: 'bun@1.3.12',
+            workspaces: ['packages/*', '!packages/excluded'],
+          },
+          null,
+          2,
+        ),
+      );
+      await Bun.write(
+        path.join(includedWorkspaceDir, 'package.json'),
+        JSON.stringify({
+          name: 'included-workspace',
+          dependencies: {
+            zod: '^4.3.6',
+          },
+        }),
+      );
+      await Bun.write(
+        path.join(excludedWorkspaceDir, 'package.json'),
+        JSON.stringify({
+          name: 'excluded-workspace',
+          dependencies: {
+            zod: '^9.9.9',
+          },
+        }),
+      );
+
+      const result = await scanRepoForRequestedPackages(repoRoot, ['zod']);
+
+      expect(result.repo.workspaceCount).toBe(1);
+      expect(result.repo.packageJsonCount).toBe(2);
+      expect(result.packages[0]?.declaredVersions).toEqual(['^4.3.6']);
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
 });

@@ -35,6 +35,19 @@ function normalizeWorkspacePattern(pattern: string): string {
     : path.posix.join(pattern, 'package.json');
 }
 
+function parseWorkspacePattern(pattern: string): {
+  glob: string;
+  include: boolean;
+} {
+  const include = !pattern.startsWith('!');
+  const rawPattern = include ? pattern : pattern.slice(1);
+
+  return {
+    glob: normalizeWorkspacePattern(rawPattern),
+    include,
+  };
+}
+
 function extractWorkspacePatterns(packageJson: PackageJsonRecord): string[] {
   if (Array.isArray(packageJson.workspaces)) {
     return packageJson.workspaces;
@@ -94,10 +107,17 @@ export async function discoverPackageJsonFiles(
   const files = new Set<string>([rootPackageJsonPath]);
 
   for (const pattern of patterns) {
-    const glob = new Bun.Glob(normalizeWorkspacePattern(pattern));
+    const { glob: workspaceGlob, include } = parseWorkspacePattern(pattern);
+    const glob = new Bun.Glob(workspaceGlob);
 
     for await (const relativeMatch of glob.scan({ cwd: repoRoot })) {
-      files.add(path.resolve(repoRoot, relativeMatch));
+      const manifestPath = path.resolve(repoRoot, relativeMatch);
+
+      if (include) {
+        files.add(manifestPath);
+      } else {
+        files.delete(manifestPath);
+      }
     }
   }
 
