@@ -18,6 +18,7 @@ import {
   toolRequirementSchema,
 } from './enums';
 
+/** Stable cache key entry recorded in the prep manifest. */
 export const cacheKeySchema = z
   .object({
     family: artifactFamilySchema,
@@ -25,6 +26,7 @@ export const cacheKeySchema = z
   })
   .strict();
 
+/** Packages and optional target version requested for a prep run. */
 export const prepRequestSchema = z
   .object({
     packages: z.array(nonEmptyStringSchema).min(1),
@@ -32,6 +34,7 @@ export const prepRequestSchema = z
   })
   .strict();
 
+/** Canonical JSON artifact file paths written under one prep run directory. */
 export const artifactFilesSchema = z
   .object({
     manifest: pathSchema,
@@ -45,6 +48,7 @@ export const artifactFilesSchema = z
   })
   .strict();
 
+/** Single tool probe result recorded during preflight. */
 export const toolProbeSchema = z
   .object({
     toolName: nonEmptyStringSchema,
@@ -56,6 +60,7 @@ export const toolProbeSchema = z
   })
   .strict();
 
+/** Aggregate preflight summary for required and optional external tools. */
 export const preflightSummarySchema = z
   .object({
     tools: z.array(toolProbeSchema).min(1),
@@ -64,6 +69,7 @@ export const preflightSummarySchema = z
   })
   .strict();
 
+/** Source families, commands, freshness, and cache metadata for one artifact. */
 export const artifactProvenanceSchema = z
   .object({
     sourceFamilies: z.array(sourceFamilySchema).min(1),
@@ -74,6 +80,7 @@ export const artifactProvenanceSchema = z
   })
   .strict();
 
+/** One dependency declaration occurrence discovered in a manifest file. */
 export const dependencyOccurrenceSchema = z
   .object({
     manifestPath: pathSchema,
@@ -82,6 +89,7 @@ export const dependencyOccurrenceSchema = z
   })
   .strict();
 
+/** Aggregated dependency metadata for one requested package. */
 export const dependencyMetaEntrySchema = z
   .object({
     package: nonEmptyStringSchema,
@@ -92,6 +100,7 @@ export const dependencyMetaEntrySchema = z
   })
   .strict();
 
+/** Repository-level prep summary including workspaces and lockfile presence. */
 export const prepRepoSummarySchema = z
   .object({
     root: pathSchema,
@@ -103,6 +112,7 @@ export const prepRepoSummarySchema = z
   })
   .strict();
 
+/** `meta` artifact payload combining request, repo scan, packages, and preflight. */
 export const metaArtifactSchema = z
   .object({
     schemaVersion: z.literal('1'),
@@ -116,6 +126,7 @@ export const metaArtifactSchema = z
   })
   .strict();
 
+/** Per-package ctx7 docs lookup result or degraded fallback details. */
 export const docsPackageEntrySchema = z
   .object({
     package: nonEmptyStringSchema,
@@ -127,6 +138,7 @@ export const docsPackageEntrySchema = z
   })
   .strict();
 
+/** `docs` artifact payload containing ctx7 results for requested packages. */
 export const docsArtifactSchema = z
   .object({
     schemaVersion: z.literal('1'),
@@ -137,6 +149,7 @@ export const docsArtifactSchema = z
   })
   .strict();
 
+/** One normalized GitHub release row captured from `gh release list`. */
 export const releaseItemSchema = z
   .object({
     name: nonEmptyStringSchema.optional(),
@@ -146,6 +159,7 @@ export const releaseItemSchema = z
   })
   .strict();
 
+/** Per-package GitHub release metadata or degradation details. */
 export const releasesPackageEntrySchema = z
   .object({
     package: nonEmptyStringSchema,
@@ -157,6 +171,7 @@ export const releasesPackageEntrySchema = z
   })
   .strict();
 
+/** `releases` artifact payload containing GitHub release metadata by package. */
 export const releasesArtifactSchema = z
   .object({
     schemaVersion: z.literal('1'),
@@ -167,6 +182,7 @@ export const releasesArtifactSchema = z
   })
   .strict();
 
+/** Resolved source tree snapshot for a package spec and optional version. */
 export const sourceSnapshotSchema = z
   .object({
     spec: nonEmptyStringSchema,
@@ -175,6 +191,7 @@ export const sourceSnapshotSchema = z
   })
   .strict();
 
+/** Per-package current and optional target source path resolution details. */
 export const sourcePathsPackageEntrySchema = z
   .object({
     package: nonEmptyStringSchema,
@@ -186,6 +203,7 @@ export const sourcePathsPackageEntrySchema = z
   })
   .strict();
 
+/** `source_paths` artifact payload containing opensrc path resolution results. */
 export const sourcePathsArtifactSchema = z
   .object({
     schemaVersion: z.literal('1'),
@@ -196,6 +214,7 @@ export const sourcePathsArtifactSchema = z
   })
   .strict();
 
+/** Per-package diff summary between resolved current and target source trees. */
 export const diffPackageEntrySchema = z
   .object({
     package: nonEmptyStringSchema,
@@ -207,6 +226,7 @@ export const diffPackageEntrySchema = z
   })
   .strict();
 
+/** `diff` artifact payload containing source diff summaries by package. */
 export const diffArtifactSchema = z
   .object({
     schemaVersion: z.literal('1'),
@@ -217,6 +237,7 @@ export const diffArtifactSchema = z
   })
   .strict();
 
+/** Per-package `bun why` and audit collection result. */
 export const usagePackageEntrySchema = z
   .object({
     package: nonEmptyStringSchema,
@@ -228,6 +249,7 @@ export const usagePackageEntrySchema = z
   })
   .strict();
 
+/** `usage` artifact payload containing Bun dependency graph evidence. */
 export const usageArtifactSchema = z
   .object({
     schemaVersion: z.literal('1'),
@@ -238,6 +260,7 @@ export const usageArtifactSchema = z
   })
   .strict();
 
+/** One derived signal attached to a requested package. */
 export const signalEntrySchema = z
   .object({
     name: nonEmptyStringSchema,
@@ -247,6 +270,7 @@ export const signalEntrySchema = z
   })
   .strict();
 
+/** Per-package list of derived upgrade-prep signals. */
 export const signalsPackageEntrySchema = z
   .object({
     package: nonEmptyStringSchema,
@@ -254,6 +278,7 @@ export const signalsPackageEntrySchema = z
   })
   .strict();
 
+/** `signals` artifact payload containing derived diagnostics by package. */
 export const signalsArtifactSchema = z
   .object({
     schemaVersion: z.literal('1'),
@@ -264,6 +289,7 @@ export const signalsArtifactSchema = z
   })
   .strict();
 
+/** Top-level prep manifest tying together artifact families, files, and preflight. */
 export const prepManifestSchema = z
   .object({
     schemaVersion: z.literal('1'),

@@ -40,6 +40,12 @@ function parseBunAuditJson(rawText: string): unknown {
   }
 }
 
+/**
+ * Returns whether a `bun audit --json` result should count as collected usage data.
+ *
+ * @param auditResult - Command result from `runCommand`, including timeout, stdout, and exit code details.
+ * @returns `true` when the audit completed without timing out, emitted JSON-capable stdout, and exited with `0` or `1`.
+ */
 export function bunAuditCollected(
   auditResult: Awaited<ReturnType<typeof runCommand>>,
 ): boolean {

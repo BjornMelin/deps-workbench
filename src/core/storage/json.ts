@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { mkdir, rename } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -92,7 +93,10 @@ export async function writeJsonFileAtomic(
   filePath: string,
   value: unknown,
 ): Promise<void> {
-  const tempFilePath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  const tempFilePath = path.join(
+    path.dirname(filePath),
+    `${path.basename(filePath)}.${process.pid}.${randomUUID()}.tmp`,
+  );
 
   await writeJsonFile(tempFilePath, value);
   await rename(tempFilePath, filePath);

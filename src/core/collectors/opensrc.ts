@@ -132,9 +132,13 @@ export async function collectSourcePathsArtifact(input: {
       ]);
 
       const currentPath =
-        currentResult.exitCode === 0 ? currentResult.stdout : undefined;
+        currentResult.exitCode === 0 && currentResult.stdout.trim().length > 0
+          ? currentResult.stdout
+          : undefined;
       const targetPath =
-        targetResult?.exitCode === 0 ? targetResult.stdout : undefined;
+        targetResult?.exitCode === 0 && targetResult.stdout.trim().length > 0
+          ? targetResult.stdout
+          : undefined;
       const repository = parseRepositoryFromSourcePath(
         currentPath ?? targetPath ?? '',
       );
