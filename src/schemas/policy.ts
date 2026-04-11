@@ -7,15 +7,19 @@ import {
   recoveryActionSchema,
 } from './enums';
 
-const scoringCategorySchema = z.enum([
-  'upgradeSeverity',
-  'evidenceConflict',
-  'repoBlastRadius',
-  'apiSurfaceMovement',
-  'replacementOpportunity',
-  'uncertainty',
-  'coupling',
-]);
+const scoringWeightSchema = z.number().min(0).max(100);
+
+const scoringWeightsSchema = z
+  .object({
+    upgradeSeverity: scoringWeightSchema,
+    evidenceConflict: scoringWeightSchema,
+    repoBlastRadius: scoringWeightSchema,
+    apiSurfaceMovement: scoringWeightSchema,
+    replacementOpportunity: scoringWeightSchema,
+    uncertainty: scoringWeightSchema,
+    coupling: scoringWeightSchema,
+  })
+  .strict();
 
 export const policySchema = z
   .object({
@@ -42,7 +46,7 @@ export const policySchema = z
             recoveryEscalationMin: z.number().min(0).max(100),
           })
           .strict(),
-        weights: z.record(scoringCategorySchema, z.number().min(0).max(100)),
+        weights: scoringWeightsSchema,
       })
       .strict()
       .superRefine((value, ctx) => {

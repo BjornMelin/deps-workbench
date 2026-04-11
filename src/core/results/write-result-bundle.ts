@@ -56,6 +56,7 @@ function renderExecutiveBrief(input: {
   primaryAction: ResultManifest['primaryAction'];
   routingDecision: RoutingDecision;
   recovery: RecoveryRecord[];
+  modelUsed: string;
 }): string {
   const lines = [
     `# Executive Brief`,
@@ -65,7 +66,7 @@ function renderExecutiveBrief(input: {
     `- Outcome: \`${input.outcomeClass}\``,
     `- Primary action: \`${input.primaryAction}\``,
     `- Model tier: \`${input.routingDecision.selectedTier}\``,
-    `- Model: \`${input.routingDecision.selectedModel}\``,
+    `- Model used: \`${input.modelUsed}\``,
   ];
 
   if (input.recovery.length > 0) {
@@ -107,6 +108,17 @@ export async function writeResultBundle(
     openQuestions:
       input.synthesis.openQuestions.length > 0 ? openQuestionsPath : undefined,
   };
+  const recommendedReadOrder = [
+    'result_manifest.json',
+    'decision_report.json',
+    'implementation_checklist.json',
+    'evidence_map.json',
+    'validation_checklist.json',
+  ];
+
+  if (resultFiles.openQuestions !== undefined) {
+    recommendedReadOrder.push('open_questions.json');
+  }
 
   const decisionReport = decisionReportSchema.parse({
     schemaVersion: '1',
@@ -170,13 +182,7 @@ export async function writeResultBundle(
     recommendedNextMode: input.synthesis.recommendedNextMode,
     promotionReason: input.synthesis.promotionReason,
     promotionConfidence: input.synthesis.promotionConfidence,
-    recommendedReadOrder: [
-      'result_manifest.json',
-      'decision_report.json',
-      'implementation_checklist.json',
-      'evidence_map.json',
-      'validation_checklist.json',
-    ],
+    recommendedReadOrder,
     stopConditions: input.structuralAssessment.stopConditions,
     sourceFamilies: input.prepBundle.manifest.sourceFamilies,
     resultFiles,
@@ -192,6 +198,7 @@ export async function writeResultBundle(
         primaryAction: input.primaryAction,
         routingDecision: input.routingDecision,
         recovery: input.recovery,
+        modelUsed: input.modelUsed,
       }),
     ),
     writeJsonFileAtomic(resultFiles.decisionReport, decisionReport),

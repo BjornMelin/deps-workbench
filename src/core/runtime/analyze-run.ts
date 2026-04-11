@@ -139,6 +139,10 @@ export async function analyzePreparedRun(
   const routingDecision = buildRoutingDecision({ prepBundle, policy });
   const modelExecutor = dependencies.modelExecutor ?? runOpenAIAnalysis;
   const recovery = [] as ResultManifest['recovery'];
+  const blockedPackageName =
+    structuralAssessment.findings[0]?.package ??
+    prepBundle.manifest.request.packages[0] ??
+    'analysis';
 
   if (!structuralAssessment.canSynthesize) {
     const synthesis = blockedSynthesis({
@@ -148,6 +152,7 @@ export async function analyzePreparedRun(
           : [
               {
                 id: 'blocked_analysis',
+                package: blockedPackageName,
                 statement:
                   'analysis is blocked by missing core evidence pillars',
                 confidence: 0.1,
