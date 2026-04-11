@@ -35,33 +35,13 @@ export async function runCommand(
     stdin: 'ignore',
     stdout: 'pipe',
     stderr: 'pipe',
+    timeout: options.timeoutMs,
   });
-
-  let timedOut = false;
-  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-
-  const exitCode = await Promise.race([
-    subprocess.exited,
-    new Promise<number | null>((resolve) => {
-      if (options.timeoutMs === undefined) {
-        return;
-      }
-
-      timeoutHandle = setTimeout(() => {
-        timedOut = true;
-        subprocess.kill();
-        resolve(null);
-      }, options.timeoutMs);
-    }),
-  ]);
-
-  if (timeoutHandle !== undefined) {
-    clearTimeout(timeoutHandle);
-  }
-
-  if (timedOut) {
-    await subprocess.exited;
-  }
+  await subprocess.exited;
+  const timedOut =
+    options.timeoutMs !== undefined &&
+    subprocess.exitCode === null &&
+    subprocess.signalCode === 'SIGTERM';
 
   const [stdout, stderr] = await Promise.all([
     new Response(subprocess.stdout).text(),
@@ -71,7 +51,7 @@ export async function runCommand(
   return {
     command,
     cwd,
-    exitCode,
+    exitCode: subprocess.exitCode,
     stdout: stdout.trimEnd(),
     stderr: stderr.trimEnd(),
     timedOut,
