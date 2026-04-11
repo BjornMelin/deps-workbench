@@ -8,7 +8,7 @@ export const nonEmptyStringSchema = z.string().trim().min(1);
 /** ISO 8601 datetime with offset, for `generatedAt`-style fields. */
 export const isoTimestampSchema = z.string().datetime({ offset: true });
 
-/** Filesystem path or path-like string; same constraints as {@link nonEmptyStringSchema}. */
+/** Filesystem path or path-like string; same constraints as `nonEmptyStringSchema`. */
 export const pathSchema = nonEmptyStringSchema;
 
 /** Array of non-empty strings preserving insertion order. */

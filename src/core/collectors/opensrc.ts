@@ -81,7 +81,6 @@ export async function collectSourcePathsArtifact(input: {
   generatedAt: string;
   preflight: PreflightSummary;
 }): Promise<SourcePathsArtifact> {
-  const packageEntries: SourcePathsPackageEntry[] = [];
   const provenance = opensrcProvenance();
 
   if (!isOpensrcAvailable(input.preflight)) {
@@ -98,82 +97,100 @@ export async function collectSourcePathsArtifact(input: {
     });
   }
 
-  for (const packageSpec of input.request.packages) {
-    const currentCommand = [
-      'opensrc',
-      'path',
-      packageSpec,
-      '--cwd',
-      input.repoRoot,
-    ];
-    const currentResult = await resolveOpensrcPath(
-      currentCommand,
-      input.repoRoot,
-    );
-    provenance.commands.push(currentCommand.join(' '));
-
-    let targetResult: CommandResult | undefined;
-    if (input.request.targetVersion !== undefined) {
-      const targetSpec = `${stripVersionFromPackageSpec(packageSpec)}@${input.request.targetVersion}`;
-      const targetCommand = [
+  const packageResults = await Promise.all(
+    input.request.packages.map(async (packageSpec) => {
+      const currentCommand = [
         'opensrc',
         'path',
-        targetSpec,
+        packageSpec,
         '--cwd',
         input.repoRoot,
       ];
-      targetResult = await resolveOpensrcPath(targetCommand, input.repoRoot);
-      provenance.commands.push(targetCommand.join(' '));
-    }
+      const currentCommandString = currentCommand.join(' ');
 
-    const currentPath =
-      currentResult.exitCode === 0 ? currentResult.stdout : undefined;
-    const targetPath =
-      targetResult?.exitCode === 0 ? targetResult.stdout : undefined;
-    const repository = parseRepositoryFromSourcePath(
-      currentPath ?? targetPath ?? '',
-    );
+      let targetCommandString: string | undefined;
+      let targetResultPromise: Promise<CommandResult | undefined>;
 
-    packageEntries.push({
-      package: stripVersionFromPackageSpec(packageSpec),
-      repository,
-      status:
-        currentPath !== undefined &&
-        (input.request.targetVersion === undefined || targetPath !== undefined)
-          ? 'collected'
-          : 'degraded',
-      current:
-        currentPath !== undefined
-          ? {
-              spec: packageSpec,
-              version: parseVersionFromSourcePath(currentPath),
-              path: currentPath,
-            }
-          : undefined,
-      target:
-        targetPath !== undefined && input.request.targetVersion !== undefined
-          ? {
-              spec: `${stripVersionFromPackageSpec(packageSpec)}@${input.request.targetVersion}`,
-              version: parseVersionFromSourcePath(targetPath),
-              path: targetPath,
-            }
-          : undefined,
-      error:
-        currentPath === undefined
-          ? currentResult.stderr ||
-            'opensrc failed to resolve current source path'
-          : targetResult !== undefined && targetPath === undefined
-            ? targetResult.stderr ||
-              'opensrc failed to resolve target source path'
-            : undefined,
-    });
+      if (input.request.targetVersion !== undefined) {
+        const targetSpec = `${stripVersionFromPackageSpec(packageSpec)}@${input.request.targetVersion}`;
+        const targetCommand = [
+          'opensrc',
+          'path',
+          targetSpec,
+          '--cwd',
+          input.repoRoot,
+        ];
+        targetCommandString = targetCommand.join(' ');
+        targetResultPromise = resolveOpensrcPath(targetCommand, input.repoRoot);
+      } else {
+        targetResultPromise = Promise.resolve(undefined);
+      }
+
+      const [currentResult, targetResult] = await Promise.all([
+        resolveOpensrcPath(currentCommand, input.repoRoot),
+        targetResultPromise,
+      ]);
+
+      const currentPath =
+        currentResult.exitCode === 0 ? currentResult.stdout : undefined;
+      const targetPath =
+        targetResult?.exitCode === 0 ? targetResult.stdout : undefined;
+      const repository = parseRepositoryFromSourcePath(
+        currentPath ?? targetPath ?? '',
+      );
+
+      return {
+        commandStrings: [
+          currentCommandString,
+          ...(targetCommandString !== undefined ? [targetCommandString] : []),
+        ],
+        packageEntry: {
+          package: stripVersionFromPackageSpec(packageSpec),
+          repository,
+          status:
+            currentPath !== undefined &&
+            (input.request.targetVersion === undefined ||
+              targetPath !== undefined)
+              ? 'collected'
+              : 'degraded',
+          current:
+            currentPath !== undefined
+              ? {
+                  spec: packageSpec,
+                  version: parseVersionFromSourcePath(currentPath),
+                  path: currentPath,
+                }
+              : undefined,
+          target:
+            targetPath !== undefined &&
+            input.request.targetVersion !== undefined
+              ? {
+                  spec: `${stripVersionFromPackageSpec(packageSpec)}@${input.request.targetVersion}`,
+                  version: parseVersionFromSourcePath(targetPath),
+                  path: targetPath,
+                }
+              : undefined,
+          error:
+            currentPath === undefined
+              ? currentResult.stderr ||
+                'opensrc failed to resolve current source path'
+              : targetResult !== undefined && targetPath === undefined
+                ? targetResult.stderr ||
+                  'opensrc failed to resolve target source path'
+                : undefined,
+        } satisfies SourcePathsPackageEntry,
+      };
+    }),
+  );
+  for (const result of packageResults) {
+    provenance.commands.push(...result.commandStrings);
   }
 
   return sourcePathsArtifactSchema.parse({
     schemaVersion: '1',
     family: 'source_paths',
     generatedAt: input.generatedAt,
-    packages: packageEntries,
+    packages: packageResults.map(({ packageEntry }) => packageEntry),
     provenance,
   });
 }

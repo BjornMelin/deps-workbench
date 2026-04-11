@@ -1,4 +1,4 @@
-import { mkdir } from 'node:fs/promises';
+import { mkdir, rename } from 'node:fs/promises';
 import path from 'node:path';
 
 import { parse as parseJsonc } from 'jsonc-parser';
@@ -78,4 +78,22 @@ export async function writeJsonFile(
 
   await mkdir(path.dirname(filePath), { recursive: true });
   await Bun.write(filePath, `${serialized}\n`);
+}
+
+/**
+ * Writes JSON through a temporary sibling file, then renames it into place.
+ *
+ * @param filePath - Output path for the JSON file.
+ * @param value - Serializable value to persist.
+ * @returns Resolves when the final file contents are atomically visible at `filePath`.
+ * @throws `TypeError` when `value` is not JSON-serializable.
+ */
+export async function writeJsonFileAtomic(
+  filePath: string,
+  value: unknown,
+): Promise<void> {
+  const tempFilePath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+
+  await writeJsonFile(tempFilePath, value);
+  await rename(tempFilePath, filePath);
 }

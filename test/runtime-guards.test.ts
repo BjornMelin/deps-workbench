@@ -3,11 +3,13 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
+import { bunAuditCollected } from '../src/core/collectors/bun';
 import { runCommand } from '../src/core/exec/run-command';
 import { withArtifactCache } from '../src/core/prep/cache';
 import { scanRepoForRequestedPackages } from '../src/core/prep/workspace';
 import { readJsonFile } from '../src/core/storage/json';
 import { resolveCacheDirectory } from '../src/core/storage/paths';
+import { prepRepoSummarySchema } from '../src/schemas';
 
 const fixtureRepoRoot = path.join(
   import.meta.dir,
@@ -26,6 +28,21 @@ describe('runCommand', () => {
 
     expect(result.timedOut).toBe(true);
     expect(result.exitCode).toBeNull();
+  });
+});
+
+describe('collectUsageArtifact', () => {
+  test('treats bun audit exit code 1 with JSON output as collected audit data', () => {
+    expect(
+      bunAuditCollected({
+        command: ['bun', 'audit', '--json'],
+        cwd: '/repo',
+        stdout: '{"vulnerabilities":[{"package":"lodash"}]}',
+        stderr: '',
+        exitCode: 1,
+        timedOut: false,
+      }),
+    ).toBe(true);
   });
 });
 
@@ -77,6 +94,18 @@ describe('withArtifactCache', () => {
 });
 
 describe('scanRepoForRequestedPackages', () => {
+  test('prep repo summary schema allows repositories without workspaces', () => {
+    expect(() =>
+      prepRepoSummarySchema.parse({
+        root: '/repo',
+        hasWorkspaces: false,
+        workspaceCount: 0,
+        packageJsonCount: 1,
+        lockfilePresent: true,
+      }),
+    ).not.toThrow();
+  });
+
   test('matches dependencies when requested package specs include versions', async () => {
     const result = await scanRepoForRequestedPackages(fixtureRepoRoot, [
       'zod@4.3.6',

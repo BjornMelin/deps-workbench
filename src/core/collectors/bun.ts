@@ -40,6 +40,16 @@ function parseBunAuditJson(rawText: string): unknown {
   }
 }
 
+export function bunAuditCollected(
+  auditResult: Awaited<ReturnType<typeof runCommand>>,
+): boolean {
+  return (
+    !auditResult.timedOut &&
+    auditResult.stdout.length > 0 &&
+    (auditResult.exitCode === 0 || auditResult.exitCode === 1)
+  );
+}
+
 /**
  * Collects `bun audit --json` once and per-package `bun why` traces into the `usage` artifact family.
  *
@@ -76,7 +86,7 @@ export async function collectUsageArtifact(input: {
     timeoutMs: BUN_TIMEOUT_MS,
   });
 
-  const auditSucceeded = !auditResult.timedOut && auditResult.exitCode === 0;
+  const auditSucceeded = bunAuditCollected(auditResult);
   const auditJson =
     auditSucceeded && auditResult.stdout.length > 0
       ? parseBunAuditJson(auditResult.stdout)

@@ -30,7 +30,7 @@ import { collectSourcePathsArtifact } from '../collectors/opensrc';
 import { stripVersionFromPackageSpec } from '../packages/package-spec';
 import { loadCheckedInPolicy } from '../policy/load-policy';
 import { probeExternalTools } from '../preflight/tools';
-import { writeJsonFile } from '../storage/json';
+import { writeJsonFileAtomic } from '../storage/json';
 import {
   ensureLocalStateDirectories,
   resolvePrepArtifactRoot,
@@ -559,15 +559,15 @@ export async function createPrepBundle(
   });
 
   await Promise.all([
-    writeJsonFile(artifactFiles.meta, meta),
-    writeJsonFile(artifactFiles.docs, docs),
-    writeJsonFile(artifactFiles.releases, releases),
-    writeJsonFile(artifactFiles.sourcePaths, sourcePaths),
-    writeJsonFile(artifactFiles.diff, diff),
-    writeJsonFile(artifactFiles.usage, usage),
-    writeJsonFile(artifactFiles.signals, signals),
+    writeJsonFileAtomic(artifactFiles.meta, meta),
+    writeJsonFileAtomic(artifactFiles.docs, docs),
+    writeJsonFileAtomic(artifactFiles.releases, releases),
+    writeJsonFileAtomic(artifactFiles.sourcePaths, sourcePaths),
+    writeJsonFileAtomic(artifactFiles.diff, diff),
+    writeJsonFileAtomic(artifactFiles.usage, usage),
+    writeJsonFileAtomic(artifactFiles.signals, signals),
   ]);
-  await writeJsonFile(artifactFiles.manifest, manifest);
+  await writeJsonFileAtomic(artifactFiles.manifest, manifest);
 
   return {
     manifest,

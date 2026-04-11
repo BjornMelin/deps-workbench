@@ -1,6 +1,4 @@
-/**
- * @fileoverview Zod schemas and inferred types for the prep-phase manifest and per-family artifacts.
- */
+/** Zod schemas and inferred types for the prep-phase manifest and per-family artifacts. */
 
 import { z } from 'zod';
 import {
@@ -99,7 +97,7 @@ export const prepRepoSummarySchema = z
     root: pathSchema,
     packageManager: nonEmptyStringSchema.optional(),
     hasWorkspaces: z.boolean(),
-    workspaceCount: z.number().int().min(1),
+    workspaceCount: z.number().int().min(0),
     packageJsonCount: z.number().int().min(1),
     lockfilePresent: z.boolean(),
   })

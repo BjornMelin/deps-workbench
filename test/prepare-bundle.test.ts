@@ -390,6 +390,8 @@ describe('createPrepBundle', () => {
     let sourceCalls = 0;
 
     try {
+      // Cache keys are derived from artifact family plus cache input, so two
+      // runs in the same repo reuse the same on-disk cache even when runId changes.
       const sharedDependencies: NonNullable<
         Parameters<typeof createPrepBundle>[1]
       > = {
