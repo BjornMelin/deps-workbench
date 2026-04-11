@@ -10,7 +10,7 @@ form, before any model synthesis begins.
 
 ## Phase status
 
-- [todo] Not started
+- [done] Verified complete
 
 ## Custom execution persona
 
@@ -103,45 +103,47 @@ Read before implementation:
 
 ### Preflight
 
-- [ ] implement external CLI availability checks
-- [ ] classify required vs optional failures clearly
-- [ ] report missing tool families in a structured way
+- [x] implement external CLI availability checks
+- [x] classify required vs optional failures clearly
+- [x] report missing tool families in a structured way
 
 ### Collectors
 
-- [ ] implement Bun signal collection wrapper(s)
-- [ ] implement opensrc source-resolution wrapper(s)
-- [ ] implement ctx7 documentation collection wrapper(s)
-- [ ] implement GitHub release/changelog metadata wrapper(s)
-- [ ] keep collector outputs typed and source-labeled
+- [x] implement Bun signal collection wrapper(s)
+- [x] implement opensrc source-resolution wrapper(s)
+- [x] implement ctx7 documentation collection wrapper(s)
+- [x] implement GitHub release/changelog metadata wrapper(s)
+- [x] keep collector outputs typed and source-labeled
 
 ### Bundle assembly
 
-- [ ] define prep bundle writer flow
-- [ ] write canonical `manifest.json`
-- [ ] write canonical artifact family files
-- [ ] ensure bundle provenance points back to source families
-- [ ] record degraded state without pretending success
+- [x] define prep bundle writer flow
+- [x] write canonical `manifest.json`
+- [x] write canonical artifact family files
+- [x] ensure bundle provenance points back to source families
+- [x] record degraded state without pretending success
 
 ### Caching and identity
 
-- [ ] use run IDs for traceability
-- [ ] use content-addressed reuse where inputs match
-- [ ] keep freshness and invalidation behavior explicit in prep metadata
+- [x] use run IDs for traceability
+- [x] use content-addressed reuse where inputs match
+- [x] keep freshness and invalidation behavior explicit in prep metadata
 
 ### Testing
 
-- [ ] add fixture-backed prep bundle generation tests
-- [ ] add tests for degraded-source behavior
-- [ ] add tests that collector outputs match schema expectations
+- [x] add fixture-backed prep bundle generation tests
+- [x] add tests for degraded-source behavior
+- [x] add tests that collector outputs match schema expectations
 
 ## Execution notes
 
-- [ ] add notes here as implementation proceeds
+- [x] Added a real `prepare` command with typed CLI parsing and manifest-first output.
+- [x] Implemented Bun-native preflight checks, workspace scanning, collector wrappers, content-addressed cache reuse, and canonical prep artifact writing.
+- [x] Added fixture repos and test coverage for bundle generation, degraded-mode recording, and cache reuse.
 
 ## Blockers
 
-- [ ] none recorded yet
+- [x] none recorded
 
 ## Verification
 
@@ -152,8 +154,8 @@ bun run test
 
 ## Verification record
 
-- [ ] `bun run typecheck`
-- [ ] `bun run test`
+- [x] `bun run typecheck`
+- [x] `bun run test`
 
 ## Completion criteria
 

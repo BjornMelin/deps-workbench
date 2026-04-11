@@ -26,8 +26,8 @@ Treat this file as the control plane for the repo buildout.
 - [done] Phase 01 bootstrap foundation verified complete
 - [done] Bundled-skills metadata lane scaffolded under `skills/`
 - [done] Phase 02 schemas, storage, and policy loading verified
-- [todo] Runtime modules and command implementations beyond Phase 02 foundations
-- [todo] Deterministic prep collectors and canonical prep artifacts
+- [done] Deterministic prep collectors and canonical prep artifacts
+- [todo] Runtime modules and command implementations beyond prepare
 - [todo] OpenAI analysis runtime and canonical result bundles
 - [todo] Operator reporting, run, resume, and release automation flows
 - [todo] Import package-coupled skills and wire install/sync automation
@@ -143,7 +143,7 @@ reporting, persistent tool use when needed, and explicit verification loops.
 | --- | --- | --- | --- | --- |
 | 01 | [Plan-01-bootstrap-foundation.md](Plan-01-bootstrap-foundation.md) | done | none | scaffold, docs, placeholder CLI/test |
 | 02 | [Plan-02-schemas-storage-and-policy.md](Plan-02-schemas-storage-and-policy.md) | done | 01 | schemas, storage helpers, policy loader verified |
-| 03 | [Plan-03-prep-collectors-and-artifacts.md](Plan-03-prep-collectors-and-artifacts.md) | todo | 02 | prep collectors, prep bundles, manifests |
+| 03 | [Plan-03-prep-collectors-and-artifacts.md](Plan-03-prep-collectors-and-artifacts.md) | done | 02 | preflight, collectors, prep bundles, manifests verified |
 | 04 | [Plan-04-analysis-runtime-and-model-routing.md](Plan-04-analysis-runtime-and-model-routing.md) | todo | 03 | analysis runtime, routing, result bundles |
 | 05 | [Plan-05-reporting-resume-and-operator-surface.md](Plan-05-reporting-resume-and-operator-surface.md) | todo | 04 | report/run/resume, compact operator flow |
 | 06 | [Plan-06-migration-docs-and-release-readiness.md](Plan-06-migration-docs-and-release-readiness.md) | todo | 01-05 | bundled skills, release automation, migration, final readiness |
