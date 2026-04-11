@@ -1,13 +1,15 @@
-import { describe, expect, test } from 'bun:test';
+import {
+  afterEach,
+  describe,
+  expect,
+  mock,
+  setSystemTime,
+  test,
+} from 'bun:test';
 import { cp, mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  parseRepositoryFromSourcePath,
-  parseVersionFromSourcePath,
-} from '../src/core/collectors/opensrc';
-import { createPrepBundle } from '../src/core/prep/prepare-bundle';
 import {
   diffArtifactSchema,
   docsArtifactSchema,
@@ -83,8 +85,77 @@ function availablePreflight(): PreflightSummary {
   };
 }
 
+type PrepareBundleTestOverrides = {
+  probeTools?: () => Promise<PreflightSummary>;
+  collectDocsArtifact?: (input: {
+    generatedAt: string;
+  }) => Promise<ReturnType<typeof docsArtifactSchema.parse>>;
+  collectReleasesArtifact?: (input: {
+    generatedAt: string;
+  }) => Promise<ReturnType<typeof releasesArtifactSchema.parse>>;
+  collectSourcePathsArtifact?: (input: {
+    generatedAt: string;
+    request: { packages: string[] };
+  }) => Promise<ReturnType<typeof sourcePathsArtifactSchema.parse>>;
+  collectUsageArtifact?: (input: {
+    generatedAt: string;
+    packages: Array<{ declaredVersions: string[] }>;
+  }) => Promise<ReturnType<typeof usageArtifactSchema.parse>>;
+  collectDiffArtifact?: (input: {
+    generatedAt: string;
+  }) => Promise<ReturnType<typeof diffArtifactSchema.parse>>;
+};
+
+async function loadCreatePrepBundle(
+  overrides: PrepareBundleTestOverrides = {},
+) {
+  mock.module('../src/core/preflight/tools', () => ({
+    probeExternalTools:
+      overrides.probeTools ?? (async () => availablePreflight()),
+  }));
+
+  if (overrides.collectSourcePathsArtifact) {
+    mock.module('../src/core/collectors/opensrc', () => ({
+      collectSourcePathsArtifact: overrides.collectSourcePathsArtifact,
+    }));
+  }
+
+  if (overrides.collectDocsArtifact) {
+    mock.module('../src/core/collectors/ctx7', () => ({
+      collectDocsArtifact: overrides.collectDocsArtifact,
+    }));
+  }
+
+  if (overrides.collectReleasesArtifact) {
+    mock.module('../src/core/collectors/github', () => ({
+      collectReleasesArtifact: overrides.collectReleasesArtifact,
+    }));
+  }
+
+  if (overrides.collectUsageArtifact) {
+    mock.module('../src/core/collectors/bun', () => ({
+      collectUsageArtifact: overrides.collectUsageArtifact,
+    }));
+  }
+
+  if (overrides.collectDiffArtifact) {
+    mock.module('../src/core/collectors/diff', () => ({
+      collectDiffArtifact: overrides.collectDiffArtifact,
+    }));
+  }
+
+  return (await import('../src/core/prep/prepare-bundle')).createPrepBundle;
+}
+
+afterEach(() => {
+  mock.restore();
+  setSystemTime();
+});
+
 describe('createPrepBundle', () => {
-  test('parses OpenSRC cache paths with Windows separators', () => {
+  test('parses OpenSRC cache paths with Windows separators', async () => {
+    const { parseRepositoryFromSourcePath, parseVersionFromSourcePath } =
+      await import('../src/core/collectors/opensrc');
     const sourcePath =
       'C:\\Users\\bjorn\\.opensrc\\repos\\github.com\\colinhacks\\zod\\4.4.0';
 
@@ -96,138 +167,135 @@ describe('createPrepBundle', () => {
     const tempRepo = await makeTempRepo();
 
     try {
-      const result = await createPrepBundle(
-        {
-          repoRoot: tempRepo,
-          packages: ['zod'],
-          targetVersion: '4.4.0',
-          runId: 'run_fixture_a',
-        },
-        {
-          now: () => new Date('2026-04-10T12:00:00.000Z'),
-          probeTools: async () => availablePreflight(),
-          collectSourcePaths: async ({ generatedAt, request }) =>
-            sourcePathsArtifactSchema.parse({
-              schemaVersion: '1',
-              family: 'source_paths',
-              generatedAt,
-              packages: [
-                {
-                  package: 'zod',
-                  repository: 'colinhacks/zod',
-                  status: 'collected',
-                  current: {
-                    spec: getRequestedPackageSpec(request),
-                    version: '4.3.6',
-                    path: '/tmp/opensrc/zod/4.3.6',
+      setSystemTime(new Date('2026-04-10T12:00:00.000Z'));
+      const createPrepBundle = await loadCreatePrepBundle({
+        collectSourcePathsArtifact: async ({ generatedAt, request }) =>
+          sourcePathsArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'source_paths',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                repository: 'colinhacks/zod',
+                status: 'collected',
+                current: {
+                  spec: getRequestedPackageSpec(request),
+                  version: '4.3.6',
+                  path: '/tmp/opensrc/zod/4.3.6',
+                },
+                target: {
+                  spec: 'zod@4.4.0',
+                  version: '4.4.0',
+                  path: '/tmp/opensrc/zod/4.4.0',
+                },
+              },
+            ],
+            provenance: {
+              sourceFamilies: ['opensrc'],
+              commands: ['opensrc path zod --cwd repo'],
+              freshness: 'fresh',
+              notes: [],
+            },
+          }),
+        collectDocsArtifact: async ({ generatedAt }) =>
+          docsArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'docs',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                query: 'migration guide breaking changes latest version',
+                libraryId: '/colinhacks/zod',
+                status: 'collected',
+                raw: { ok: true },
+              },
+            ],
+            provenance: {
+              sourceFamilies: ['ctx7'],
+              commands: ['ctx7 library zod ...'],
+              freshness: 'fresh',
+              notes: [],
+            },
+          }),
+        collectReleasesArtifact: async ({ generatedAt }) =>
+          releasesArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'releases',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                repository: 'colinhacks/zod',
+                status: 'collected',
+                releases: [
+                  {
+                    tagName: 'v4.4.0',
+                    name: 'v4.4.0',
+                    publishedAt: '2026-04-09T00:00:00Z',
+                    isLatest: true,
                   },
-                  target: {
-                    spec: 'zod@4.4.0',
-                    version: '4.4.0',
-                    path: '/tmp/opensrc/zod/4.4.0',
-                  },
-                },
-              ],
-              provenance: {
-                sourceFamilies: ['opensrc'],
-                commands: ['opensrc path zod --cwd repo'],
-                freshness: 'fresh',
-                notes: [],
+                ],
               },
-            }),
-          collectDocs: async ({ generatedAt }) =>
-            docsArtifactSchema.parse({
-              schemaVersion: '1',
-              family: 'docs',
-              generatedAt,
-              packages: [
-                {
-                  package: 'zod',
-                  query: 'migration guide breaking changes latest version',
-                  libraryId: '/colinhacks/zod',
-                  status: 'collected',
-                  raw: { ok: true },
-                },
-              ],
-              provenance: {
-                sourceFamilies: ['ctx7'],
-                commands: ['ctx7 library zod ...'],
-                freshness: 'fresh',
-                notes: [],
+            ],
+            provenance: {
+              sourceFamilies: ['gh'],
+              commands: ['gh release list --repo colinhacks/zod --limit 10'],
+              freshness: 'fresh',
+              notes: [],
+            },
+          }),
+        collectUsageArtifact: async ({ generatedAt, packages }) =>
+          usageArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'usage',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                status: 'collected',
+                whyText: 'zod@4.3.6\\n  └─ fixture-repo-basic',
+                auditJson: {},
+                declaredVersions: packages[0]?.declaredVersions ?? [],
               },
-            }),
-          collectReleases: async ({ generatedAt }) =>
-            releasesArtifactSchema.parse({
-              schemaVersion: '1',
-              family: 'releases',
-              generatedAt,
-              packages: [
-                {
-                  package: 'zod',
-                  repository: 'colinhacks/zod',
-                  status: 'collected',
-                  releases: [
-                    {
-                      tagName: 'v4.4.0',
-                      name: 'v4.4.0',
-                      publishedAt: '2026-04-09T00:00:00Z',
-                      isLatest: true,
-                    },
-                  ],
-                },
-              ],
-              provenance: {
-                sourceFamilies: ['gh'],
-                commands: ['gh release list --repo colinhacks/zod --limit 10'],
-                freshness: 'fresh',
-                notes: [],
+            ],
+            provenance: {
+              sourceFamilies: ['bun'],
+              commands: ['bun why zod --top --depth 4'],
+              freshness: 'fresh',
+              notes: [],
+            },
+          }),
+        collectDiffArtifact: async ({ generatedAt }) =>
+          diffArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'diff',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                status: 'collected',
+                currentPath: '/tmp/opensrc/zod/4.3.6',
+                targetPath: '/tmp/opensrc/zod/4.4.0',
+                summaryText:
+                  ' 12 files changed, 200 insertions(+), 10 deletions(-)',
               },
-            }),
-          collectUsage: async ({ generatedAt, packages }) =>
-            usageArtifactSchema.parse({
-              schemaVersion: '1',
-              family: 'usage',
-              generatedAt,
-              packages: [
-                {
-                  package: 'zod',
-                  status: 'collected',
-                  whyText: 'zod@4.3.6\\n  └─ fixture-repo-basic',
-                  auditJson: {},
-                  declaredVersions: packages[0]?.declaredVersions ?? [],
-                },
-              ],
-              provenance: {
-                sourceFamilies: ['bun'],
-                commands: ['bun why zod --top --depth 4'],
-                freshness: 'fresh',
-                notes: [],
-              },
-            }),
-          collectDiff: async ({ generatedAt }) =>
-            diffArtifactSchema.parse({
-              schemaVersion: '1',
-              family: 'diff',
-              generatedAt,
-              packages: [
-                {
-                  package: 'zod',
-                  status: 'collected',
-                  currentPath: '/tmp/opensrc/zod/4.3.6',
-                  targetPath: '/tmp/opensrc/zod/4.4.0',
-                  summaryText:
-                    ' 12 files changed, 200 insertions(+), 10 deletions(-)',
-                },
-              ],
-              provenance: {
-                sourceFamilies: ['git', 'opensrc'],
-                commands: ['git diff --no-index --stat --summary -- ...'],
-                freshness: 'fresh',
-                notes: [],
-              },
-            }),
-        },
-      );
+            ],
+            provenance: {
+              sourceFamilies: ['git', 'opensrc'],
+              commands: ['git diff --no-index --stat --summary -- ...'],
+              freshness: 'fresh',
+              notes: [],
+            },
+          }),
+      });
+      const result = await createPrepBundle({
+        repoRoot: tempRepo,
+        packages: ['zod'],
+        targetVersion: '4.4.0',
+        runId: 'run_fixture_a',
+      });
 
       const manifest = prepManifestSchema.parse(
         JSON.parse(
@@ -252,124 +320,121 @@ describe('createPrepBundle', () => {
     const tempRepo = await makeTempRepo();
 
     try {
-      const result = await createPrepBundle(
-        {
-          repoRoot: tempRepo,
-          packages: ['zod'],
-          runId: 'run_fixture_b',
-        },
-        {
-          now: () => new Date('2026-04-10T12:05:00.000Z'),
-          probeTools: async () => availablePreflight(),
-          collectSourcePaths: async ({ generatedAt, request }) =>
-            sourcePathsArtifactSchema.parse({
-              schemaVersion: '1',
-              family: 'source_paths',
-              generatedAt,
-              packages: [
-                {
-                  package: 'zod',
-                  repository: 'colinhacks/zod',
-                  status: 'collected',
-                  current: {
-                    spec: getRequestedPackageSpec(request),
-                    version: '4.3.6',
-                    path: '/tmp/opensrc/zod/4.3.6',
-                  },
+      setSystemTime(new Date('2026-04-10T12:05:00.000Z'));
+      const createPrepBundle = await loadCreatePrepBundle({
+        collectSourcePathsArtifact: async ({ generatedAt, request }) =>
+          sourcePathsArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'source_paths',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                repository: 'colinhacks/zod',
+                status: 'collected',
+                current: {
+                  spec: getRequestedPackageSpec(request),
+                  version: '4.3.6',
+                  path: '/tmp/opensrc/zod/4.3.6',
                 },
-              ],
-              provenance: {
-                sourceFamilies: ['opensrc'],
-                commands: [],
-                freshness: 'fresh',
-                notes: [],
               },
-            }),
-          collectDocs: async ({ generatedAt }) =>
-            docsArtifactSchema.parse({
-              schemaVersion: '1',
-              family: 'docs',
-              generatedAt,
-              packages: [
-                {
-                  package: 'zod',
-                  query: 'migration guide breaking changes latest version',
-                  status: 'degraded',
-                  error: 'ctx7 unavailable during preflight',
-                },
-              ],
-              provenance: {
-                sourceFamilies: ['ctx7'],
-                commands: [],
-                freshness: 'fresh',
-                notes: ['ctx7 unavailable during preflight'],
+            ],
+            provenance: {
+              sourceFamilies: ['opensrc'],
+              commands: [],
+              freshness: 'fresh',
+              notes: [],
+            },
+          }),
+        collectDocsArtifact: async ({ generatedAt }) =>
+          docsArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'docs',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                query: 'migration guide breaking changes latest version',
+                status: 'degraded',
+                error: 'ctx7 unavailable during preflight',
               },
-            }),
-          collectReleases: async ({ generatedAt }) =>
-            releasesArtifactSchema.parse({
-              schemaVersion: '1',
-              family: 'releases',
-              generatedAt,
-              packages: [
-                {
-                  package: 'zod',
-                  repository: 'colinhacks/zod',
-                  status: 'degraded',
-                  releases: [],
-                  error: 'gh unavailable during preflight',
-                },
-              ],
-              provenance: {
-                sourceFamilies: ['gh'],
-                commands: [],
-                freshness: 'fresh',
-                notes: [],
+            ],
+            provenance: {
+              sourceFamilies: ['ctx7'],
+              commands: [],
+              freshness: 'fresh',
+              notes: ['ctx7 unavailable during preflight'],
+            },
+          }),
+        collectReleasesArtifact: async ({ generatedAt }) =>
+          releasesArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'releases',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                repository: 'colinhacks/zod',
+                status: 'degraded',
+                releases: [],
+                error: 'gh unavailable during preflight',
               },
-            }),
-          collectUsage: async ({ generatedAt }) =>
-            usageArtifactSchema.parse({
-              schemaVersion: '1',
-              family: 'usage',
-              generatedAt,
-              packages: [
-                {
-                  package: 'zod',
-                  status: 'collected',
-                  whyText: 'zod@4.3.6',
-                  auditJson: {},
-                  declaredVersions: ['^4.3.6'],
-                },
-              ],
-              provenance: {
-                sourceFamilies: ['bun'],
-                commands: [],
-                freshness: 'fresh',
-                notes: [],
+            ],
+            provenance: {
+              sourceFamilies: ['gh'],
+              commands: [],
+              freshness: 'fresh',
+              notes: [],
+            },
+          }),
+        collectUsageArtifact: async ({ generatedAt }) =>
+          usageArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'usage',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                status: 'collected',
+                whyText: 'zod@4.3.6',
+                auditJson: {},
+                declaredVersions: ['^4.3.6'],
               },
-            }),
-          collectDiff: async ({ generatedAt }) =>
-            diffArtifactSchema.parse({
-              schemaVersion: '1',
-              family: 'diff',
-              generatedAt,
-              packages: [
-                {
-                  package: 'zod',
-                  status: 'skipped',
-                  currentPath: '/tmp/opensrc/zod/4.3.6',
-                  error:
-                    'source diff requires both current and target source paths',
-                },
-              ],
-              provenance: {
-                sourceFamilies: ['git', 'opensrc'],
-                commands: [],
-                freshness: 'fresh',
-                notes: [],
+            ],
+            provenance: {
+              sourceFamilies: ['bun'],
+              commands: [],
+              freshness: 'fresh',
+              notes: [],
+            },
+          }),
+        collectDiffArtifact: async ({ generatedAt }) =>
+          diffArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'diff',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                status: 'skipped',
+                currentPath: '/tmp/opensrc/zod/4.3.6',
+                error:
+                  'source diff requires both current and target source paths',
               },
-            }),
-        },
-      );
+            ],
+            provenance: {
+              sourceFamilies: ['git', 'opensrc'],
+              commands: [],
+              freshness: 'fresh',
+              notes: [],
+            },
+          }),
+      });
+      const result = await createPrepBundle({
+        repoRoot: tempRepo,
+        packages: ['zod'],
+        runId: 'run_fixture_b',
+      });
 
       expect(result.manifest.degradedArtifactFamilies).toEqual(
         expect.arrayContaining(['docs', 'releases', 'diff']),
@@ -377,6 +442,146 @@ describe('createPrepBundle', () => {
       expect(
         result.signals.packages[0]?.signals.some(
           (signal) => signal.name === 'target_version_unspecified',
+        ),
+      ).toBe(true);
+      expect(
+        result.signals.packages[0]?.signals.some(
+          (signal) => signal.name === 'source_diff_skipped',
+        ),
+      ).toBe(true);
+    } finally {
+      await rm(tempRepo, { recursive: true, force: true });
+    }
+  });
+
+  test('emits a diff warning signal when diff collection degrades', async () => {
+    const tempRepo = await makeTempRepo();
+
+    try {
+      const createPrepBundle = await loadCreatePrepBundle({
+        collectSourcePathsArtifact: async ({ generatedAt, request }) =>
+          sourcePathsArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'source_paths',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                repository: 'colinhacks/zod',
+                status: 'collected',
+                current: {
+                  spec: getRequestedPackageSpec(request),
+                  version: '4.3.6',
+                  path: '/tmp/opensrc/zod/4.3.6',
+                },
+                target: {
+                  spec: 'zod@4.4.0',
+                  version: '4.4.0',
+                  path: '/tmp/opensrc/zod/4.4.0',
+                },
+              },
+            ],
+            provenance: {
+              sourceFamilies: ['opensrc'],
+              commands: [],
+              freshness: 'fresh',
+              notes: [],
+            },
+          }),
+        collectDocsArtifact: async ({ generatedAt }) =>
+          docsArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'docs',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                query: 'migration guide breaking changes latest version',
+                status: 'collected',
+                raw: { ok: true },
+              },
+            ],
+            provenance: {
+              sourceFamilies: ['ctx7'],
+              commands: [],
+              freshness: 'fresh',
+              notes: [],
+            },
+          }),
+        collectReleasesArtifact: async ({ generatedAt }) =>
+          releasesArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'releases',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                repository: 'colinhacks/zod',
+                status: 'collected',
+                releases: [],
+              },
+            ],
+            provenance: {
+              sourceFamilies: ['gh'],
+              commands: [],
+              freshness: 'fresh',
+              notes: [],
+            },
+          }),
+        collectUsageArtifact: async ({ generatedAt }) =>
+          usageArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'usage',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                status: 'collected',
+                whyText: 'zod@4.3.6',
+                auditJson: {},
+                declaredVersions: ['^4.3.6'],
+              },
+            ],
+            provenance: {
+              sourceFamilies: ['bun'],
+              commands: [],
+              freshness: 'fresh',
+              notes: [],
+            },
+          }),
+        collectDiffArtifact: async ({ generatedAt }) =>
+          diffArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'diff',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                status: 'degraded',
+                currentPath: '/tmp/opensrc/zod/4.3.6',
+                targetPath: '/tmp/opensrc/zod/4.4.0',
+                error: 'git diff timed out',
+              },
+            ],
+            provenance: {
+              sourceFamilies: ['git', 'opensrc'],
+              commands: [],
+              freshness: 'fresh',
+              notes: [],
+            },
+          }),
+      });
+
+      const result = await createPrepBundle({
+        repoRoot: tempRepo,
+        packages: ['zod'],
+        targetVersion: '4.4.0',
+        runId: 'run_fixture_diff_degraded',
+      });
+
+      expect(
+        result.signals.packages[0]?.signals.some(
+          (signal) => signal.name === 'source_diff_incomplete',
         ),
       ).toBe(true);
     } finally {
@@ -390,14 +595,11 @@ describe('createPrepBundle', () => {
     let sourceCalls = 0;
 
     try {
+      setSystemTime(new Date('2026-04-10T12:10:00.000Z'));
       // Cache keys are derived from artifact family plus cache input, so two
       // runs in the same repo reuse the same on-disk cache even when runId changes.
-      const sharedDependencies: NonNullable<
-        Parameters<typeof createPrepBundle>[1]
-      > = {
-        now: () => new Date('2026-04-10T12:10:00.000Z'),
-        probeTools: async () => availablePreflight(),
-        collectSourcePaths: async ({ generatedAt, request }) => {
+      const createPrepBundle = await loadCreatePrepBundle({
+        collectSourcePathsArtifact: async ({ generatedAt, request }) => {
           sourceCalls += 1;
           return sourcePathsArtifactSchema.parse({
             schemaVersion: '1',
@@ -423,7 +625,7 @@ describe('createPrepBundle', () => {
             },
           });
         },
-        collectDocs: async ({ generatedAt }) => {
+        collectDocsArtifact: async ({ generatedAt }) => {
           docsCalls += 1;
           return docsArtifactSchema.parse({
             schemaVersion: '1',
@@ -446,7 +648,7 @@ describe('createPrepBundle', () => {
             },
           });
         },
-        collectReleases: async ({ generatedAt }) =>
+        collectReleasesArtifact: async ({ generatedAt }) =>
           releasesArtifactSchema.parse({
             schemaVersion: '1',
             family: 'releases',
@@ -466,7 +668,7 @@ describe('createPrepBundle', () => {
               notes: [],
             },
           }),
-        collectUsage: async ({ generatedAt }) =>
+        collectUsageArtifact: async ({ generatedAt }) =>
           usageArtifactSchema.parse({
             schemaVersion: '1',
             family: 'usage',
@@ -487,7 +689,7 @@ describe('createPrepBundle', () => {
               notes: [],
             },
           }),
-        collectDiff: async ({ generatedAt }) =>
+        collectDiffArtifact: async ({ generatedAt }) =>
           diffArtifactSchema.parse({
             schemaVersion: '1',
             family: 'diff',
@@ -508,24 +710,18 @@ describe('createPrepBundle', () => {
               notes: [],
             },
           }),
-      };
+      });
 
-      await createPrepBundle(
-        {
-          repoRoot: tempRepo,
-          packages: ['zod'],
-          runId: 'run_fixture_cache_a',
-        },
-        sharedDependencies,
-      );
-      await createPrepBundle(
-        {
-          repoRoot: tempRepo,
-          packages: ['zod'],
-          runId: 'run_fixture_cache_b',
-        },
-        sharedDependencies,
-      );
+      await createPrepBundle({
+        repoRoot: tempRepo,
+        packages: ['zod'],
+        runId: 'run_fixture_cache_a',
+      });
+      await createPrepBundle({
+        repoRoot: tempRepo,
+        packages: ['zod'],
+        runId: 'run_fixture_cache_b',
+      });
 
       expect(sourceCalls).toBe(1);
       expect(docsCalls).toBe(1);
@@ -551,131 +747,128 @@ describe('createPrepBundle', () => {
     };
 
     try {
-      await createPrepBundle(
-        {
-          repoRoot: tempRepo,
-          packages: ['zod'],
-          runId: 'run_fixture_parallel_a',
+      setSystemTime(new Date('2026-04-10T12:15:00.000Z'));
+      const createPrepBundle = await loadCreatePrepBundle({
+        collectSourcePathsArtifact: async ({ generatedAt, request }) => {
+          startedFamilies.push('source_paths');
+          maybeReleaseSourcePaths();
+          await sourcePathsReady;
+          return sourcePathsArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'source_paths',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                repository: 'colinhacks/zod',
+                status: 'collected',
+                current: {
+                  spec: getRequestedPackageSpec(request),
+                  version: '4.3.6',
+                  path: '/tmp/opensrc/zod/4.3.6',
+                },
+              },
+            ],
+            provenance: {
+              sourceFamilies: ['opensrc'],
+              commands: [],
+              freshness: 'fresh',
+              notes: [],
+            },
+          });
         },
-        {
-          now: () => new Date('2026-04-10T12:15:00.000Z'),
-          probeTools: async () => availablePreflight(),
-          collectSourcePaths: async ({ generatedAt, request }) => {
-            startedFamilies.push('source_paths');
-            maybeReleaseSourcePaths();
-            await sourcePathsReady;
-            return sourcePathsArtifactSchema.parse({
-              schemaVersion: '1',
-              family: 'source_paths',
-              generatedAt,
-              packages: [
-                {
-                  package: 'zod',
-                  repository: 'colinhacks/zod',
-                  status: 'collected',
-                  current: {
-                    spec: getRequestedPackageSpec(request),
-                    version: '4.3.6',
-                    path: '/tmp/opensrc/zod/4.3.6',
-                  },
-                },
-              ],
-              provenance: {
-                sourceFamilies: ['opensrc'],
-                commands: [],
-                freshness: 'fresh',
-                notes: [],
+        collectUsageArtifact: async ({ generatedAt }) => {
+          startedFamilies.push('usage');
+          maybeReleaseSourcePaths();
+          return usageArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'usage',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                status: 'collected',
+                whyText: 'zod@4.3.6',
+                auditJson: {},
+                declaredVersions: ['^4.3.6'],
               },
-            });
-          },
-          collectUsage: async ({ generatedAt }) => {
-            startedFamilies.push('usage');
-            maybeReleaseSourcePaths();
-            return usageArtifactSchema.parse({
-              schemaVersion: '1',
-              family: 'usage',
-              generatedAt,
-              packages: [
-                {
-                  package: 'zod',
-                  status: 'collected',
-                  whyText: 'zod@4.3.6',
-                  auditJson: {},
-                  declaredVersions: ['^4.3.6'],
-                },
-              ],
-              provenance: {
-                sourceFamilies: ['bun'],
-                commands: [],
-                freshness: 'fresh',
-                notes: [],
-              },
-            });
-          },
-          collectDocs: async ({ generatedAt }) =>
-            docsArtifactSchema.parse({
-              schemaVersion: '1',
-              family: 'docs',
-              generatedAt,
-              packages: [
-                {
-                  package: 'zod',
-                  query: 'migration guide breaking changes latest version',
-                  status: 'degraded',
-                  error: 'ctx7 unavailable during preflight',
-                },
-              ],
-              provenance: {
-                sourceFamilies: ['ctx7'],
-                commands: [],
-                freshness: 'fresh',
-                notes: [],
-              },
-            }),
-          collectReleases: async ({ generatedAt }) =>
-            releasesArtifactSchema.parse({
-              schemaVersion: '1',
-              family: 'releases',
-              generatedAt,
-              packages: [
-                {
-                  package: 'zod',
-                  repository: 'colinhacks/zod',
-                  status: 'degraded',
-                  releases: [],
-                  error: 'gh unavailable during preflight',
-                },
-              ],
-              provenance: {
-                sourceFamilies: ['gh'],
-                commands: [],
-                freshness: 'fresh',
-                notes: [],
-              },
-            }),
-          collectDiff: async ({ generatedAt }) =>
-            diffArtifactSchema.parse({
-              schemaVersion: '1',
-              family: 'diff',
-              generatedAt,
-              packages: [
-                {
-                  package: 'zod',
-                  status: 'skipped',
-                  currentPath: '/tmp/opensrc/zod/4.3.6',
-                  error:
-                    'source diff requires both current and target source paths',
-                },
-              ],
-              provenance: {
-                sourceFamilies: ['git', 'opensrc'],
-                commands: [],
-                freshness: 'fresh',
-                notes: [],
-              },
-            }),
+            ],
+            provenance: {
+              sourceFamilies: ['bun'],
+              commands: [],
+              freshness: 'fresh',
+              notes: [],
+            },
+          });
         },
-      );
+        collectDocsArtifact: async ({ generatedAt }) =>
+          docsArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'docs',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                query: 'migration guide breaking changes latest version',
+                status: 'degraded',
+                error: 'ctx7 unavailable during preflight',
+              },
+            ],
+            provenance: {
+              sourceFamilies: ['ctx7'],
+              commands: [],
+              freshness: 'fresh',
+              notes: [],
+            },
+          }),
+        collectReleasesArtifact: async ({ generatedAt }) =>
+          releasesArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'releases',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                repository: 'colinhacks/zod',
+                status: 'degraded',
+                releases: [],
+                error: 'gh unavailable during preflight',
+              },
+            ],
+            provenance: {
+              sourceFamilies: ['gh'],
+              commands: [],
+              freshness: 'fresh',
+              notes: [],
+            },
+          }),
+        collectDiffArtifact: async ({ generatedAt }) =>
+          diffArtifactSchema.parse({
+            schemaVersion: '1',
+            family: 'diff',
+            generatedAt,
+            packages: [
+              {
+                package: 'zod',
+                status: 'skipped',
+                currentPath: '/tmp/opensrc/zod/4.3.6',
+                error:
+                  'source diff requires both current and target source paths',
+              },
+            ],
+            provenance: {
+              sourceFamilies: ['git', 'opensrc'],
+              commands: [],
+              freshness: 'fresh',
+              notes: [],
+            },
+          }),
+      });
+      await createPrepBundle({
+        repoRoot: tempRepo,
+        packages: ['zod'],
+        runId: 'run_fixture_parallel_a',
+      });
 
       expect(startedFamilies.slice(0, 2).sort()).toEqual([
         'source_paths',

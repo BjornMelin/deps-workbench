@@ -6,6 +6,8 @@ import type { ZodType } from 'zod';
 import { readJsonFile, writeJsonFile } from '../storage/json';
 import { resolveCacheDirectory } from '../storage/paths';
 
+const cacheWriteLocks = new Map<string, Promise<void>>();
+
 /**
  * Artifact value with stable cache key and whether it was read from disk or freshly produced.
  *
@@ -61,13 +63,41 @@ export async function withArtifactCache<T>(input: {
     }
   }
 
-  const produced = await input.producer();
-  const parsed = input.schema.parse(produced);
-  await writeJsonFile(cacheFilePath, parsed);
+  const previousLock = cacheWriteLocks.get(cacheKey) ?? Promise.resolve();
+  let releaseLock!: () => void;
+  const currentLock = new Promise<void>((resolve) => {
+    releaseLock = resolve;
+  });
+  cacheWriteLocks.set(cacheKey, currentLock);
 
-  return {
-    value: parsed,
-    cacheKey,
-    freshness: 'fresh',
-  };
+  await previousLock;
+
+  try {
+    if (await Bun.file(cacheFilePath).exists()) {
+      try {
+        return {
+          value: await readJsonFile(cacheFilePath, input.schema),
+          cacheKey,
+          freshness: 'reused',
+        };
+      } catch {
+        // Regenerate invalid cache entries instead of turning a cache miss into a hard failure.
+      }
+    }
+
+    const produced = await input.producer();
+    const parsed = input.schema.parse(produced);
+    await writeJsonFile(cacheFilePath, parsed);
+
+    return {
+      value: parsed,
+      cacheKey,
+      freshness: 'fresh',
+    };
+  } finally {
+    releaseLock();
+    if (cacheWriteLocks.get(cacheKey) === currentLock) {
+      cacheWriteLocks.delete(cacheKey);
+    }
+  }
 }

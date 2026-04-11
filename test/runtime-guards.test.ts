@@ -91,6 +91,48 @@ describe('withArtifactCache', () => {
       await rm(repoRoot, { recursive: true, force: true });
     }
   });
+
+  test('serializes concurrent cache misses for the same key', async () => {
+    const repoRoot = await mkdtemp(
+      path.join(os.tmpdir(), 'deps-workbench-cache-lock-'),
+    );
+    let producerCalls = 0;
+    let releaseProducer!: () => void;
+    const producerStarted = new Promise<void>((resolve) => {
+      releaseProducer = resolve;
+    });
+
+    try {
+      const sharedInput = {
+        repoRoot,
+        family: 'docs',
+        cacheInput: { package: 'zod' },
+        schema: z.object({ ok: z.literal(true) }),
+        producer: async () => {
+          producerCalls += 1;
+          await producerStarted;
+          return { ok: true } as const;
+        },
+      };
+
+      const first = withArtifactCache(sharedInput);
+      const second = withArtifactCache(sharedInput);
+      await Bun.sleep(10);
+      releaseProducer();
+
+      const [firstResult, secondResult] = await Promise.all([first, second]);
+
+      expect(producerCalls).toBe(1);
+      expect(firstResult.value).toEqual({ ok: true });
+      expect(secondResult.value).toEqual({ ok: true });
+      expect([firstResult.freshness, secondResult.freshness].sort()).toEqual([
+        'fresh',
+        'reused',
+      ]);
+    } finally {
+      await rm(repoRoot, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('scanRepoForRequestedPackages', () => {

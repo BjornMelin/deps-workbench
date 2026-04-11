@@ -107,19 +107,30 @@ export async function collectReleasesArtifact(input: {
       timeoutMs: GH_TIMEOUT_MS,
     });
 
+    let releases: ReleasesPackageEntry['releases'] = [];
+    let status: ReleasesPackageEntry['status'] =
+      result.exitCode === 0 ? 'collected' : 'degraded';
+    let error =
+      result.exitCode === 0
+        ? undefined
+        : result.stderr || 'gh release list failed';
+
+    if (result.exitCode === 0 && result.stdout.length > 0) {
+      try {
+        releases = parseGhReleaseList(result.stdout);
+      } catch {
+        status = 'degraded';
+        error = 'gh release list returned invalid JSON';
+      }
+    }
+
     packages.push({
       package: entry.package,
       repository: entry.repository,
-      status: result.exitCode === 0 ? 'collected' : 'degraded',
-      releases:
-        result.exitCode === 0 && result.stdout.length > 0
-          ? parseGhReleaseList(result.stdout)
-          : [],
+      status,
+      releases,
       rawText: result.stdout.length > 0 ? result.stdout : undefined,
-      error:
-        result.exitCode === 0
-          ? undefined
-          : result.stderr || 'gh release list failed',
+      error,
     });
   }
 

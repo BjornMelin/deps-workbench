@@ -63,42 +63,6 @@ export type PrepareBundleResult = {
   signals: SignalsArtifact;
 };
 
-/** Optional overrides for tests (clock, run id, collectors, tool probe). */
-type PrepareBundleDependencies = {
-  now?: () => Date;
-  createRunId?: () => string;
-  probeTools?: () => Promise<PreflightSummary>;
-  collectDocs?: (input: {
-    repoRoot: string;
-    generatedAt: string;
-    preflight: PreflightSummary;
-    request: PrepRequest;
-  }) => Promise<DocsArtifact>;
-  collectSourcePaths?: (input: {
-    repoRoot: string;
-    request: PrepRequest;
-    generatedAt: string;
-    preflight: PreflightSummary;
-  }) => Promise<SourcePathsArtifact>;
-  collectReleases?: (input: {
-    repoRoot: string;
-    generatedAt: string;
-    preflight: PreflightSummary;
-    sourcePaths: SourcePathsArtifact;
-  }) => Promise<ReleasesArtifact>;
-  collectUsage?: (input: {
-    repoRoot: string;
-    generatedAt: string;
-    preflight: PreflightSummary;
-    packages: RepoPackageScan['packages'];
-  }) => Promise<UsageArtifact>;
-  collectDiff?: (input: {
-    repoRoot: string;
-    generatedAt: string;
-    sourcePaths: SourcePathsArtifact;
-  }) => Promise<DiffArtifact>;
-};
-
 function defaultRunId(): string {
   return `run_${Date.now().toString(36)}_${crypto.randomUUID().slice(0, 8)}`;
 }
@@ -272,6 +236,13 @@ function buildSignalsArtifact(input: {
         sourceFamily: 'git',
         detail: diffEntry.error ?? 'source diff was skipped',
       });
+    } else if (diffEntry?.status === 'degraded') {
+      signals.push({
+        name: 'source_diff_incomplete',
+        severity: 'warn',
+        sourceFamily: 'git',
+        detail: diffEntry.error ?? 'source diff artifact is degraded',
+      });
     }
 
     const currentMajor = readMajorVersion(sourcePathEntry?.current?.version);
@@ -315,17 +286,14 @@ function buildSignalsArtifact(input: {
  * Runs preflight, collectors (with cache), builds signals, and writes JSON under `.local/runs/<runId>/prep`.
  *
  * @param options - Repository root, requested packages, mode, optional target version and run id.
- * @param dependencies - Injection hook for deterministic tests.
  * @returns Manifest and typed artifact payloads written for the requested prep run.
  * @throws Error if options.packages is empty
  * @throws Error if the requested mode is not configured in the policy
  */
 export async function createPrepBundle(
   options: PrepareBundleOptions,
-  dependencies: PrepareBundleDependencies = {},
 ): Promise<PrepareBundleResult> {
-  const now = dependencies.now ?? (() => new Date());
-  const generatedAt = now().toISOString();
+  const generatedAt = new Date().toISOString();
   const repoRoot = resolveRepoRoot(options.repoRoot ?? process.cwd());
   await ensureLocalStateDirectories(repoRoot);
   const policy = await loadCheckedInPolicy(repoRoot);
@@ -349,15 +317,19 @@ export async function createPrepBundle(
     ),
     targetVersion: options.targetVersion,
   };
-  const runId = options.runId ?? (dependencies.createRunId ?? defaultRunId)();
+  const runId = options.runId ?? defaultRunId();
   const artifactRoot = resolvePrepArtifactRoot(repoRoot, runId);
   await mkdir(artifactRoot, { recursive: true });
 
-  const preflight = await (dependencies.probeTools ?? probeExternalTools)();
-  const repoScan = await scanRepoForRequestedPackages(
+  const preflightPromise = probeExternalTools();
+  const repoScanPromise = scanRepoForRequestedPackages(
     repoRoot,
     request.packages,
   );
+  const [preflight, repoScan] = await Promise.all([
+    preflightPromise,
+    repoScanPromise,
+  ]);
 
   const sourcePathsPromise = withArtifactCache({
     repoRoot,
@@ -369,7 +341,7 @@ export async function createPrepBundle(
     },
     schema: sourcePathsArtifactSchema,
     producer: () =>
-      (dependencies.collectSourcePaths ?? collectSourcePathsArtifact)({
+      collectSourcePathsArtifact({
         repoRoot,
         request,
         generatedAt,
@@ -386,7 +358,7 @@ export async function createPrepBundle(
     },
     schema: usageArtifactSchema,
     producer: () =>
-      (dependencies.collectUsage ?? collectUsageArtifact)({
+      collectUsageArtifact({
         repoRoot,
         generatedAt,
         preflight,
@@ -409,7 +381,7 @@ export async function createPrepBundle(
     },
     schema: docsArtifactSchema,
     producer: () =>
-      (dependencies.collectDocs ?? collectDocsArtifact)({
+      collectDocsArtifact({
         repoRoot,
         generatedAt,
         preflight,
@@ -426,7 +398,7 @@ export async function createPrepBundle(
     },
     schema: releasesArtifactSchema,
     producer: () =>
-      (dependencies.collectReleases ?? collectReleasesArtifact)({
+      collectReleasesArtifact({
         repoRoot,
         generatedAt,
         preflight,
@@ -442,7 +414,7 @@ export async function createPrepBundle(
     },
     schema: diffArtifactSchema,
     producer: () =>
-      (dependencies.collectDiff ?? collectDiffArtifact)({
+      collectDiffArtifact({
         repoRoot,
         generatedAt,
         sourcePaths: sourcePathsCached.value,
