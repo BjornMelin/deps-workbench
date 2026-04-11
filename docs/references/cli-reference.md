@@ -26,13 +26,20 @@
 
 - `analyze` consumes an existing prep bundle only; it does not recollect prep
   evidence.
+- The prep manifest and artifact file paths are validated against the owning
+  run directory before any artifact read.
 - The initial model tier comes from policy-based routing over the prepared
   bundle.
+- Major-version scoring is semver-aware and treats `0.x -> 1.x` as a breaking
+  boundary.
 - One automatic escalation retry is allowed only for `implementation` mode, and
   only when the routed score reaches `recoveryEscalationMin` and uncertainty
   signals still justify it.
 - Recovery metadata reports whether escalation actually resolved uncertainty,
   not just whether a second model call happened.
+- The written result bundle records the executor-selected model separately from
+  the routed model, and `open_questions.json` is added to the read order when
+  it exists.
 - Analyze synthesis is consumed as schema-typed agent output, not best-effort
   free-form JSON text parsing.
 

@@ -70,7 +70,14 @@ including:
 
 `decision_report.json` carries the synthesis `semanticOutcome`, and blocked
 runs must preserve `semanticOutcome: blocked` there instead of collapsing to a
-degraded/reference-only fallback.
+degraded/reference-only fallback. `result_manifest.json` records the executed
+model in `modelUsed`, the routed model in `routingDecision.selectedModel`, and
+the read order now appends `open_questions.json` when that file exists.
+
+Prepared bundles are loaded through the run directory boundary, and manifest-
+declared artifact files are validated so they stay inside the owning run before
+the analysis runtime reads them. Result claims and evidence references are kept
+locatable: evidence refs must include at least a `package` or `locator` field.
 
 ## Outcome model
 
@@ -96,6 +103,9 @@ The runtime uses conservative model routing:
 - `gpt-5.4-nano` for extraction and lightweight compaction
 - `gpt-5.4-mini` for standard synthesis
 - `gpt-5.4` only when risk signals justify escalation
+
+Major-version routing treats semver ranges/prefixes conservatively and counts
+`0.x -> 1.x` as a high-risk upgrade boundary.
 
 The OpenAI analysis lane should request schema-typed output from the Agents SDK
 so synthesis results arrive as contract-validated structured data instead of
