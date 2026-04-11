@@ -48,9 +48,15 @@ function parseWorkspacePattern(pattern: string): {
   };
 }
 
+function stringWorkspacePatterns(patterns: unknown[]): string[] {
+  return patterns.filter(
+    (pattern): pattern is string => typeof pattern === 'string',
+  );
+}
+
 function extractWorkspacePatterns(packageJson: PackageJsonRecord): string[] {
   if (Array.isArray(packageJson.workspaces)) {
-    return packageJson.workspaces;
+    return stringWorkspacePatterns(packageJson.workspaces);
   }
 
   if (
@@ -58,7 +64,7 @@ function extractWorkspacePatterns(packageJson: PackageJsonRecord): string[] {
     typeof packageJson.workspaces === 'object' &&
     Array.isArray(packageJson.workspaces.packages)
   ) {
-    return packageJson.workspaces.packages;
+    return stringWorkspacePatterns(packageJson.workspaces.packages);
   }
 
   return [];
@@ -115,7 +121,7 @@ export async function discoverPackageJsonFiles(
 
       if (include) {
         files.add(manifestPath);
-      } else {
+      } else if (manifestPath !== rootPackageJsonPath) {
         files.delete(manifestPath);
       }
     }
