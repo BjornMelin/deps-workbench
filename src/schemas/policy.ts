@@ -7,6 +7,16 @@ import {
   recoveryActionSchema,
 } from './enums';
 
+const scoringCategorySchema = z.enum([
+  'upgradeSeverity',
+  'evidenceConflict',
+  'repoBlastRadius',
+  'apiSurfaceMovement',
+  'replacementOpportunity',
+  'uncertainty',
+  'coupling',
+]);
+
 export const policySchema = z
   .object({
     modes: z
@@ -25,8 +35,30 @@ export const policySchema = z
     modelRouting: z
       .object({
         tiers: z.record(modelTierSchema, z.string().trim().min(1)),
+        thresholds: z
+          .object({
+            triageNanoMax: z.number().min(0).max(100),
+            fullEscalationMin: z.number().min(0).max(100),
+            recoveryEscalationMin: z.number().min(0).max(100),
+          })
+          .strict(),
+        weights: z.record(scoringCategorySchema, z.number().min(0).max(100)),
       })
-      .strict(),
+      .strict()
+      .superRefine((value, ctx) => {
+        const totalWeight = Object.values(value.weights).reduce(
+          (sum, weight) => sum + weight,
+          0,
+        );
+
+        if (totalWeight !== 100) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['weights'],
+            message: 'modelRouting.weights must sum to 100',
+          });
+        }
+      }),
     recovery: z
       .object({
         maxAutomaticHops: z.number().int().min(0).max(1),

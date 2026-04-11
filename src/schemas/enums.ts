@@ -8,6 +8,24 @@ export const modeSchema = z.enum(['triage', 'research', 'implementation']);
 /** Model routing tiers used by analysis policy. */
 export const modelTierSchema = z.enum(['nano', 'mini', 'full']);
 
+/** Canonical change intents emitted in implementation checklists. */
+export const changeIntentSchema = z.enum([
+  'replace',
+  'delete',
+  'introduce',
+  'verify_only',
+]);
+
+/** Claim certainty buckets written into result artifacts. */
+export const claimBucketSchema = z.enum(['SUPPORTED', 'UNVERIFIED']);
+
+/** Recovery record states for the single bounded automatic hop. */
+export const recoveryStatusSchema = z.enum([
+  'attempted',
+  'succeeded',
+  'skipped',
+]);
+
 /** Automatic recovery actions permitted after degraded analysis runs. */
 export const recoveryActionSchema = z.enum([
   'refresh_docs',
@@ -87,3 +105,9 @@ export const dependencyFieldSchema = z.enum([
 
 /** Signal severities emitted into the prep signals artifact. */
 export const signalSeveritySchema = z.enum(['info', 'warn', 'error']);
+
+export type Mode = z.infer<typeof modeSchema>;
+export type ModelTier = z.infer<typeof modelTierSchema>;
+export type RecoveryAction = z.infer<typeof recoveryActionSchema>;
+export type OutcomeClass = z.infer<typeof outcomeClassSchema>;
+export type PrimaryAction = z.infer<typeof primaryActionSchema>;
