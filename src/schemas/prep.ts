@@ -9,7 +9,7 @@ import { artifactFamilySchema, modeSchema } from './enums';
 
 export const cacheKeySchema = z
   .object({
-    family: nonEmptyStringSchema,
+    family: artifactFamilySchema,
     key: nonEmptyStringSchema,
   })
   .strict();

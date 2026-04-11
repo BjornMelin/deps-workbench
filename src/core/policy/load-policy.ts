@@ -50,8 +50,10 @@ export async function loadCheckedInPolicy(
       );
     }
 
+    const causeMessage = error instanceof Error ? error.message : String(error);
+
     throw new PolicyLoadError(
-      `Failed to load checked-in policy at ${filePath}`,
+      `Failed to load checked-in policy at ${filePath}: ${causeMessage}`,
       filePath,
       { cause: error },
     );

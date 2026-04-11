@@ -175,7 +175,7 @@ This phase is complete only if:
 ## Stop rules
 
 - Stop if analysis starts performing deterministic prep collection.
-- Stop if recovery expands into open-ended retry loops.
+- Halt when recovery expands into open-ended retry loops.
 - Stop if result output becomes narrative-only instead of implementation-driving.
 
 ## Resume rules

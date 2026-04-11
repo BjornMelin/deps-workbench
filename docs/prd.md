@@ -73,8 +73,9 @@ then read only the next necessary artifact.
 
 ### Explicit uncertainty
 
-Per-claim confidence and `UNVERIFIED` buckets are required; hidden uncertainty
-in prose is not acceptable.
+Per-claim confidence and explicit `UNVERIFIED` buckets are required; hidden
+uncertainty in prose is not acceptable. Result manifests should carry structured
+unverified claim records with a stable id, confidence score, and bucket value.
 
 ### Bundled skills with clean ownership
 

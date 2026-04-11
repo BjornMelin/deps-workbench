@@ -8,7 +8,13 @@
   "primaryAction": "review_key_claims",
   "modelUsed": "gpt-5.4-mini",
   "topRiskSignals": ["major_version_change"],
-  "topUnverifiedItems": ["migration_docs_gap"],
+  "topUnverifiedItems": [
+    {
+      "id": "migration_docs_gap",
+      "confidence": 0.78,
+      "bucket": "UNVERIFIED"
+    }
+  ],
   "recommendedNextMode": "implementation",
   "resultFiles": {
     "executiveBrief": "/repo/.local/runs/run_123/result/executive_brief.md",

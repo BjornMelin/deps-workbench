@@ -32,6 +32,20 @@ describe('schema contracts', () => {
     );
   });
 
+  test('rejects a result manifest with a blocked outcome and mismatched action', async () => {
+    const fixture = (await readFixture(
+      'schemas/minimal-result-manifest.json',
+    )) as Record<string, unknown>;
+
+    expect(() =>
+      resultManifestSchema.parse({
+        ...fixture,
+        outcomeClass: 'blocked',
+        primaryAction: 'review_key_claims',
+      }),
+    ).toThrow();
+  });
+
   test('rejects a prep manifest without source families', () => {
     expect(() =>
       prepManifestSchema.parse({
@@ -45,6 +59,19 @@ describe('schema contracts', () => {
         degradedArtifactFamilies: [],
         sourceFamilies: [],
         cacheKeys: [],
+      }),
+    ).toThrow();
+  });
+
+  test('rejects a prep manifest with degraded families outside artifact families', async () => {
+    const fixture = (await readFixture(
+      'schemas/minimal-prep-manifest.json',
+    )) as Record<string, unknown>;
+
+    expect(() =>
+      prepManifestSchema.parse({
+        ...fixture,
+        degradedArtifactFamilies: ['signals'],
       }),
     ).toThrow();
   });
