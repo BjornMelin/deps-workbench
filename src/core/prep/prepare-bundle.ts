@@ -317,6 +317,8 @@ function buildSignalsArtifact(input: {
  * @param options - Repository root, requested packages, mode, optional target version and run id.
  * @param dependencies - Injection hook for deterministic tests.
  * @returns Manifest and typed artifact payloads written for the requested prep run.
+ * @throws Error if options.packages is empty
+ * @throws Error if the requested mode is not configured in the policy
  */
 export async function createPrepBundle(
   options: PrepareBundleOptions,

@@ -30,6 +30,9 @@ function createCacheHash(input: unknown): string {
  * @typeParam T - Must match `schema` (typically an artifact family type).
  * @param input - Cache metadata, validation schema, and producer for one artifact family.
  * @returns Cached or freshly produced artifact value with stable key and freshness state.
+ *
+ * The producer may return a pre-validated shape, but `schema.parse` is the source of truth for
+ * what we cache and return: validation runs again and any schema defaults are applied before write.
  */
 export async function withArtifactCache<T>(input: {
   repoRoot: string;
@@ -58,12 +61,12 @@ export async function withArtifactCache<T>(input: {
     }
   }
 
-  const value = await input.producer();
-  input.schema.parse(value);
-  await writeJsonFile(cacheFilePath, value);
+  const produced = await input.producer();
+  const parsed = input.schema.parse(produced);
+  await writeJsonFile(cacheFilePath, parsed);
 
   return {
-    value,
+    value: parsed,
     cacheKey,
     freshness: 'fresh',
   };
